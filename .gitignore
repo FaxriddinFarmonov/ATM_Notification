@@ -80,3 +80,33 @@ media/uploads/
 *.pem
 *.key
 ```
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual env
+venv/
+env/
+.venv/
+
+# Database
+db.sqlite3
+
+# Environment
+.env
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule.*
+*.pid
+
+# Static and media
+media/
+staticfiles/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
