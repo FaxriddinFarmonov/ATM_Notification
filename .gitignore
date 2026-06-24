@@ -1,0 +1,82 @@
+```gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# Static and media files
+staticfiles/
+media/
+
+# Migrations (agar migratsiyalarni saqlamoqchi bo'lsangiz, bu qatorlarni olib tashlang)
+# */migrations/
+# !*/migrations/__init__.py
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage and testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# Jupyter
+.ipynb_checkpoints
+
+# mypy
+.mypy_cache/
+
+# pytest
+.cache/
+
+# Nginx cache
+nginx/temp/
+
+# Docker
+*.pid
+
+# Uploaded files
+media/uploads/
+
+# Secrets
+*.pem
+*.key
+```
