@@ -26,10 +26,20 @@ SECRET_KEY = 'django-insecure-k(v*f1qm$22!l8#+8qpjmq&@clwphmn*dc!t+tie@xiqco6+fp
 TELEGRAM_BOT_TOKEN  = "8920660555:AAG47cziMaxMINz9jWEnP7FnIgk3MnbGx3o"
 GROUP_CHAT_ID = -1002229184837
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
+ALLOWED_HOSTS = [
+    "atm-info.turonbank.uz",
+    "172.16.100.49",
+    "127.0.0.1",
+    "localhost",
+]
 
-ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = [
+    "https://atm-info.turonbank.uz",
+    "http://atm-info.turonbank.uz",
+]
 
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 
@@ -153,7 +163,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Tashkent'
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 USE_I18N = True
 USE_TZ = True
 

@@ -14,7 +14,7 @@ class EventMessageBuilder:
             engineer_text = eng.full_name
 
             if getattr(eng, "telegram_username", None):
-                engineer_text += f"\n@{eng.telegram_username}"
+                engineer_text += f"\n{eng.telegram_username}"
         else:
             engineer_text = "Not assigned"
 
