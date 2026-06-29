@@ -14,4 +14,4 @@ class ATMRules:
 
     @staticmethod
     def is_no_transaction(last_tx_hours):
-        return last_tx_hours >= 12
+        return last_tx_hours >= 15

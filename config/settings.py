@@ -112,7 +112,7 @@ CELERY_BEAT_SCHEDULE = {
     # 1. ATM larni olish
     "sync-atms-morning": {
         "task": "apps.atms.tasks.sync_atms",
-        "schedule": crontab(hour=9, minute=20),
+        "schedule": crontab(hour=9, minute=15),
     },
 
     "sync-atms-evening": {
@@ -123,7 +123,7 @@ CELERY_BEAT_SCHEDULE = {
     # 2. Notification yaratish
     "generate-notifications-morning": {
         "task": "apps.notifications.tasks.generate_notifications",
-        "schedule": crontab(hour=9, minute=25),
+        "schedule": crontab(hour=9, minute=20),
     },
 
     "generate-notifications-evening": {

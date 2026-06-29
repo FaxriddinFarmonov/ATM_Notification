@@ -8,7 +8,7 @@ from django.utils import timezone
 class EventEngine:
 
     CASH_THRESHOLD = 50_000_000
-    TX_LIMIT_HOURS = 12
+    TX_LIMIT_HOURS = 15
 
     def __init__(self, atm, item, old_state):
         self.atm = atm
@@ -66,11 +66,12 @@ class EventEngine:
             if last_event and (timezone.now() - last_event.created_at).seconds < 1800:
                 return
 
-            self._create_event(
-                "TRANZAKSIYA_YO'Q",
-                "12 soatdan beri tranzaksiya yo‘q"
-            )
+         
+            hours = int(diff.total_seconds() // 3600)
 
+            self._create_event(
+           	 "TRANZAKSIYA_YO'Q",
+   	   	 f"{hours} soatdan beri tranzaksiya yo‘q")
         except Exception:
             return
 
