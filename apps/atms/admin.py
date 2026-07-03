@@ -55,19 +55,21 @@ class ATMEventInline(admin.TabularInline):
 # =========================
 @admin.register(ATM)
 class ATMAdmin(BaseAdmin):
+
     list_display = (
         "serial",
-        "tid",
+        "mfo",
+        "merchant_id",
+        "terminal_id",
+        "host_provider",
         "branch_number",
         "model_name",
         "engineer",
-        "location",
     )
-
     search_fields = (
         "serial",
         "tid",
-        "atm_uid",
+        "terminal_id",
         "branch_number",
         "address",
         "model_name",
@@ -102,7 +104,21 @@ class ATMAdmin(BaseAdmin):
             "fields": ("model_name", "responsible_engineer", "extra_attrs")
         }),
     )
+    @admin.display(description="MFO", ordering="extra_attrs")
+    def mfo(self, obj):
+        return (obj.extra_attrs or {}).get("mfo", "—")
 
+    @admin.display(description="Merchant ID", ordering="extra_attrs")
+    def merchant_id(self, obj):
+        return (obj.extra_attrs or {}).get("merchantId", "—")
+
+    @admin.display(description="Terminal ID", ordering="extra_attrs")
+    def terminal_id(self, obj):
+        return (obj.extra_attrs or {}).get("terminalId", "—")
+
+    @admin.display(description="Host Provider", ordering="extra_attrs")
+    def host_provider(self, obj):
+        return (obj.extra_attrs or {}).get("hostProvider", "—")
     def engineer(self, obj):
         if obj.responsible_engineer:
             return obj.responsible_engineer

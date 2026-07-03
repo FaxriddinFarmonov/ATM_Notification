@@ -1,4 +1,3 @@
-
 from apps.atms.models import ATMEvent
 
 from datetime import timedelta
@@ -6,7 +5,6 @@ from django.utils import timezone
 
 
 class EventEngine:
-
     CASH_THRESHOLD = 50_000_000
     TX_LIMIT_HOURS = 15
 
@@ -42,6 +40,7 @@ class EventEngine:
             "BANKOMATDA_PUL_KAM",
             f"Bankomatda pul kam: {remaining:,} UZS"
         )
+
     # ------------------------
     def check_no_transaction(self):
 
@@ -66,12 +65,11 @@ class EventEngine:
             if last_event and (timezone.now() - last_event.created_at).seconds < 1800:
                 return
 
-         
             hours = int(diff.total_seconds() // 3600)
 
             self._create_event(
-           	 "TRANZAKSIYA_YO'Q",
-   	   	 f"{hours} soatdan beri tranzaksiya yo‘q")
+                "TRANZAKSIYA_YO'Q",
+                f"{hours} soatdan beri tranzaksiya yo‘q")
         except Exception:
             return
 
@@ -83,8 +81,6 @@ class EventEngine:
                 atm=self.atm,
                 event_type=event_type
             ).order_by("-id").first()
-
-
 
         ATMEvent.objects.create(
             atm=self.atm,

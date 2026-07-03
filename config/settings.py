@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-k(v*f1qm$22!l8#+8qpjmq&@clwphmn*dc!t+tie@xiqco6+fp
 TELEGRAM_BOT_TOKEN  = "8920660555:AAG47cziMaxMINz9jWEnP7FnIgk3MnbGx3o"
 GROUP_CHAT_ID = -1002229184837
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 ALLOWED_HOSTS = [
     "atm-info.turonbank.uz",
     "172.16.100.49",
@@ -53,7 +53,9 @@ INSTALLED_APPS = [
     'apps.atms',
     'apps.users',
     'apps.notifications',
-    'apps.monitoring'
+    'apps.monitoring',
+    'apps.common',
+    'apps.Bankomat_hisobot',
 
 ]
 
