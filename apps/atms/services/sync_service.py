@@ -27,8 +27,6 @@ class SyncService:
                     "tid": item.get("tid"),
                     "branch_number": item.get("card", {}).get("branchNumber"),
                     "address": item.get("card", {}).get("address"),
-                    "latitude": item.get("card", {}).get("gpsCoords", {}).get("latitude"),
-                    "longitude": item.get("card", {}).get("gpsCoords", {}).get("longitude"),
                     "model_name": item.get("model", {}).get("name"),
                     "extra_attrs": item.get("card", {}).get("extraAttrs", {})
                 }

@@ -98,7 +98,7 @@ class ATMAdmin(BaseAdmin):
             "fields": ("external_id", "atm_uid", "serial", "tid")
         }),
         ("📍 Location", {
-            "fields": ("branch_number", "address", "latitude", "longitude")
+            "fields": ("branch_number", "address")
         }),
         ("⚙️ Info", {
             "fields": ("model_name", "responsible_engineer", "extra_attrs")
@@ -124,10 +124,7 @@ class ATMAdmin(BaseAdmin):
             return obj.responsible_engineer
         return "—"
 
-    def location(self, obj):
-        if obj.latitude and obj.longitude:
-            return f"{obj.latitude}, {obj.longitude}"
-        return "—"
+
 
 
 # =========================
