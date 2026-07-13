@@ -1,0 +1,25 @@
+
+
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+
+<li>
+    <a href="{% url 'admin:atm_download_full_excel' %}"
+       class="button"
+       style="
+            background:#0B7285;
+            color:white;
+            font-weight:bold;
+            padding:10px 18px;
+            border-radius:8px;
+       ">
+
+        ⬇ Download Full ATM Report
+
+    </a>
+</li>
+
+{{ block.super }}
+
+{% endblock %}

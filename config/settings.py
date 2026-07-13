@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.monitoring',
     'apps.common',
     'apps.Bankomat_hisobot',
+    'apps.maintenance',
 
 ]
 
@@ -68,13 +69,17 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+         "DIRS": [
+            BASE_DIR / "templates",
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -162,7 +167,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
-
+MEDIA_URL = '/media/'
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Tashkent'
 from pathlib import Path

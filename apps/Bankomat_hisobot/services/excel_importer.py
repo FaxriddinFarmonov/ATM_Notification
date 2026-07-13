@@ -1,502 +1,1011 @@
+import logging
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Dict, Any
+from ..models import ATMMonthlyStatistic
+from ..models import ATMYearStatistic
 from decimal import Decimal
-
+from .constants import MONTHS
+from .constants import YEARS
 from django.db import transaction
 from openpyxl import load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
+import re
+from collections import defaultdict
+from .constants import (
+    SHEETS,
+    HEADER_ROW,
+    DATA_START_ROW,
+    TERMINAL_ID,
+    REGION,
+    ADDRESS,
+    ATM_MODEL,
+    ZERO,
+    NOT_WORKING,
+)
 
-from apps.Bankomat_hisobot.models import ATMType, Region, ATMModel, ATM, Branch, ATMStatistic, ATMStatus
-from datetime import date
+from ..models.ATMMonthlyStatistic import (
+    ATMTURON,
+    ExcelImport,
+)
+
+logger = logging.getLogger(__name__)
+
+
 
 class ATMExcelImporter:
-    """
-    Excel importer
 
-    - Faqat FULL sheetni o'qiydi
-    - Merge qilingan kataklarni tiklaydi
-    - Headerlarni tekshiradi
-    - Rowlarni dict ko'rinishida qaytaradi
-    """
+    def __init__(self, excel_import):
 
-    SHEET_NAME = "FULL"
-
-    REQUIRED_HEADERS = [
-        "№",
-        "BXM",
-        "Joylashgan joyi",
-        "Bankomat turi",
-        "Bankomat modeli",
-        "Holati",
-        "Seriya raqami",
-        "Inventar raqami",
-        "Yuridik manzili",
-        "Merchant ID",
-        "Terminal ID",
-        "Ohirgi 3 oylik chiqim",
-        "Ohirgi 3 oylik daromad",
-    ]
-
-    def __init__(self, file_path):
-
-        self.file_path = Path(file_path)
+        self.excel_import = excel_import
 
         self.workbook = None
 
-        self.sheet = None
-
         self.headers = {}
 
-        self.previous_branch = None
+        self.exist_atms = {}
 
-        self.previous_region = None
+        self.atm_create_list = []
 
-        self.previous_address = None
+        self.atm_update_list = []
 
-        # ==========================
-        # CACHE
-        # ==========================
+        self.month_create_list = []
 
-        self.region_cache = {}
+        self.month_update_list = []
 
-        self.branch_cache = {}
+        self.year_create_list = []
 
-        self.type_cache = {}
+        self.year_update_list = []
 
-        self.model_cache = {}
+        self.exist_months = {}
 
-        self.atm_cache = {}
+        self.exist_years = {}
 
-        # ==========================
-        # IMPORT REPORT
-        # ==========================
+        # NEW
+        self.month_headers = []
 
-        self.created = 0
+        self.year_headers = []
+        self.year_create_keys = set()
 
-        self.updated = 0
 
-        self.errors = []
 
-    def load_cache(self):
 
-        """
-        Database dagi barcha ma'lumotlarni RAM ga yuklaydi.
-        """
 
-        self.region_cache = {
-            region.name.lower(): region
-            for region in Region.objects.all()
-        }
+    def load_workbook(self):
 
-        self.type_cache = {
-            item.name.lower(): item
-            for item in ATMType.objects.all()
-        }
+        logger.info("Opening excel file...")
 
-        self.model_cache = {
-            item.name.lower(): item
-            for item in ATMModel.objects.all()
-        }
-
-        self.atm_cache = {}
-
-        for atm in ATM.objects.all():
-
-            if atm.serial_number:
-                self.atm_cache[("serial", atm.serial_number)] = atm
-
-            if atm.merchant_id:
-                self.atm_cache[("merchant", atm.merchant_id)] = atm
-
-            if atm.terminal_id:
-                self.atm_cache[("terminal", atm.terminal_id)] = atm
-
-        self.branch_cache = {}
-
-        for branch in Branch.objects.select_related("region"):
-            key = (
-                branch.region.name.lower(),
-                branch.name.lower()
-            )
-
-            self.branch_cache[key] = branch
-
-    def get_region(self, name):
-
-        if not name:
-            raise ValueError("Region nomi bo'sh")
-
-        key = name.strip().lower()
-
-        if key in self.region_cache:
-            return self.region_cache[key]
-
-        region = Region.objects.create(
-            name=name.strip()
+        self.workbook = load_workbook(
+            filename=self.excel_import.file.path,
+            data_only=True,
         )
 
-        self.region_cache[key] = region
+        logger.info("Workbook loaded.")
 
-        return region
+    def load_existing_atms(self):
+
+        logger.info("Loading existing ATMs...")
+
+        self.exist_atms = {
+
+            str(obj.terminal_id): obj
+
+            for obj in ATMTURON.objects.all()
+
+        }
+        print(len(self.exist_atms))
+        logger.info(
+
+            "Loaded %s ATMs",
+
+            len(self.exist_atms),
+
+        )
+        print(list(self.exist_atms.keys())[:20])
 
 
-    def get_branch(
-            self,
-            region,
-            name,
-            legal_address,
+
+    def get_headers(
+        self,
+        sheet: Worksheet,
+    ) -> Dict[str, int]:
+
+        headers = {}
+
+        for col in range(1, sheet.max_column + 1):
+
+            value = sheet.cell(
+                row=HEADER_ROW,
+                column=col,
+            ).value
+
+            if value is None:
+                continue
+
+            value = str(value).strip()
+
+            headers[value] = col
+
+        return headers
+
+
+    def get_cell(
+
+        self,
+
+        sheet: Worksheet,
+
+        row: int,
+
+        column_name: str,
+
     ):
-        """
-        Branch ni cache yoki databasedan oladi.
-        Agar bo'lmasa yaratadi.
-        """
 
-        if not name:
-            raise ValueError("Branch nomi bo'sh.")
+        column = self.headers.get(column_name)
 
-        key = (
-            region.name.lower(),
-            name.strip().lower(),
-        )
+        if column is None:
 
-        if key in self.branch_cache:
-            return self.branch_cache[key]
+            return None
 
-        branch = Branch.objects.create(
-            region=region,
-            name=name.strip(),
-            legal_address=legal_address.strip() if legal_address else "",
-        )
+        return sheet.cell(
+            row=row,
+            column=column,
+        ).value
 
-        self.branch_cache[key] = branch
+    def to_decimal(
+        self,
+        value,
+    ) -> Decimal:
 
-        return branch
+        if value is None:
+            return ZERO
 
-    def get_atm_type(self, name):
-        """
-        ATM turini cache yoki databasedan oladi.
-        """
+        if value == "":
+            return ZERO
 
-        if not name:
-            raise ValueError("ATM turi bo'sh.")
+        if isinstance(value, Decimal):
+            return value
 
-        key = name.strip().lower()
+        value = str(value).strip()
 
-        if key in self.type_cache:
-            return self.type_cache[key]
+        if value == "":
+            return ZERO
 
-        atm_type = ATMType.objects.create(
-            name=name.strip()
-        )
+        if value == NOT_WORKING:
+            return ZERO
 
-        self.type_cache[key] = atm_type
+        value = value.replace(" ", "")
 
-        return atm_type
+        value = value.replace(",", ".")
 
-    def get_atm_model(self, name):
-        """
-        ATM modelini cache yoki databasedan oladi.
-        """
+        try:
 
-        if not name:
-            raise ValueError("ATM modeli bo'sh.")
+            return Decimal(value)
 
-        key = name.strip().lower()
+        except InvalidOperation:
 
-        if key in self.model_cache:
-            return self.model_cache[key]
+            return ZERO
 
-        model = ATMModel.objects.create(
-            name=name.strip()
-        )
+    def clean_string(
+        self,
+        value,
+    ) -> str:
 
-        self.model_cache[key] = model
+        if value is None:
 
-        return model
+            return ""
 
-    def get_or_create_atm(
+        return str(value).strip()
+
+    def validate_row(
             self,
-            branch,
-            atm_type,
-            atm_model,
+            sheet,
             row,
+    ) -> bool:
+        """
+        Satr import qilinishga yaroqliligini tekshiradi.
+        """
+
+        try:
+            terminal = self.get_cell(
+                sheet=sheet,
+                row=row,
+                column_name=TERMINAL_ID,
+            )
+        except Exception:
+            return False
+
+        if terminal is None:
+            return False
+
+        terminal = self.clean_string(terminal)
+
+        if not terminal:
+            return False
+
+        # Excelda ba'zan bunday qiymatlar uchraydi
+        if terminal in (
+                "-",
+                "--",
+                "None",
+                "NULL",
+                "nan",
+        ):
+            return False
+
+        # Terminal ID uzunligi juda kichik bo'lsa ham o'tkazmaymiz
+        if len(terminal) < 3:
+            return False
+
+        return True
+
+
+
+
+    def parse_atm(
+            self,
+            sheet,
+            row,
+            card_type,
     ):
         """
-        ATM ni yaratadi yoki yangilaydi.
+        Exceldagi bitta ATM satrini parse qiladi.
         """
 
-        serial_number = row["serial_number"]
-
-        status = (
-            ATMStatus.ACTIVE
-            if row["status"].lower() == "soz"
-            else ATMStatus.INACTIVE
+        terminal = self.clean_string(
+            self.get_cell(
+                sheet,
+                row,
+                TERMINAL_ID,
+            )
         )
 
-        # Cache dan tekshiramiz
-        if serial_number in self.atm_cache:
+        # Terminal ID bo'lmasa satrni tashlab ketamiz
+        if not terminal:
+            return
 
-            atm = self.atm_cache[serial_number]
+        region = self.clean_string(
+            self.get_cell(
+                sheet,
+                row,
+                REGION,
+            )
+        )
+
+        address = self.clean_string(
+            self.get_cell(
+                sheet,
+                row,
+                ADDRESS,
+            )
+        )
+
+        model = self.clean_string(
+            self.get_cell(
+                sheet,
+                row,
+                ATM_MODEL,
+            )
+        )
+
+        name = address
+
+        card_type = card_type.upper()
+
+        if terminal in self.exist_atms:
+
+            atm = self.exist_atms[terminal]
 
             changed = False
 
-            if atm.branch_id != branch.id:
-                atm.branch = branch
+            if atm.region != region:
+                atm.region = region
                 changed = True
 
-            if atm.atm_type_id != atm_type.id:
-                atm.atm_type = atm_type
+            if atm.address != address:
+                atm.address = address
                 changed = True
 
-            if atm.atm_model_id != atm_model.id:
-                atm.atm_model = atm_model
+            if atm.name != name:
+                atm.name = name
                 changed = True
 
-            if atm.status != status:
-                atm.status = status
+            if atm.model != model:
+                atm.model = model
                 changed = True
 
-            if atm.inventory_number != row["inventory_number"]:
-                atm.inventory_number = row["inventory_number"]
-                changed = True
-
-            if atm.merchant_id != row["merchant_id"]:
-                atm.merchant_id = row["merchant_id"]
-                changed = True
-
-            if atm.terminal_id != row["terminal_id"]:
-                atm.terminal_id = row["terminal_id"]
+            if atm.card_type != card_type:
+                atm.card_type = card_type
                 changed = True
 
             if changed:
-                atm.save()
+                self.atm_update_list.append(atm)
 
-                self.updated += 1
+        else:
 
-            return atm
+            atm = ATMTURON(
+                terminal_id=terminal,
+                region=region,
+                name=name,
+                address=address,
+                model=model,
+                card_type=card_type,
+            )
 
-        atm = ATM.objects.create(
-
-            branch=branch,
-
-            atm_type=atm_type,
-
-            atm_model=atm_model,
-
-            status=status,
-
-            serial_number=serial_number,
-
-            inventory_number=row["inventory_number"],
-
-            merchant_id=row["merchant_id"],
-
-            terminal_id=row["terminal_id"],
-        )
-
-        self.atm_cache[serial_number] = atm
-
-        self.created += 1
-
+            self.atm_create_list.append(atm)
+            self.exist_atms[terminal] = atm
         return atm
 
+
+
     @transaction.atomic
-    def import_data(self):
-
-        self.load_cache()
-
-        for row in self.read():
-            region = self.get_region(
-                row["region"]
-            )
-
-            branch = self.get_branch(
-                region=region,
-                name=row["branch"],
-                legal_address=row["legal_address"],
-            )
-
-            atm_type = self.get_atm_type(
-                row["atm_type"]
-            )
-
-            atm_model = self.get_atm_model(
-                row["atm_model"]
-            )
-
-            atm = self.get_or_create_atm(
-                branch=branch,
-                atm_type=atm_type,
-                atm_model=atm_model,
-                row=row,
-            )
-
-            self.save_statistic(
-                atm,
-                row,
-            )
-
-        return {
-
-            "created": self.created,
-
-            "updated": self.updated,
-
-            "errors": len(self.errors),
-
-        }
-
-    def save_statistic(
-            self,
-            atm,
-            row,
-    ):
-
-        ATMStatistic.objects.update_or_create(
-
-            atm=atm,
-
-            period=date.today().replace(day=1),
-
-            defaults={
-
-                "expense": row["expense"],
-
-                "income": row["income"],
-
-            }
-
-        )
-    def load_workbook(self):
-
-        if not self.file_path.exists():
-            raise FileNotFoundError(self.file_path)
-
-        self.workbook = load_workbook(
-            filename=self.file_path,
-            data_only=True
-        )
-
-        if self.SHEET_NAME not in self.workbook.sheetnames:
-            raise Exception(
-                f"{self.SHEET_NAME} sheet topilmadi."
-            )
-
-        self.sheet = self.workbook[self.SHEET_NAME]
-
-
-    def load_headers(self):
-
-        for cell in self.sheet[1]:
-
-            if cell.value:
-
-                self.headers[str(cell.value).strip()] = cell.column
-
-        missing = []
-
-        for header in self.REQUIRED_HEADERS:
-
-            if header not in self.headers:
-                missing.append(header)
-
-        if missing:
-            raise Exception(
-                f"Header topilmadi: {missing}"
-            )
-
-    def get(self, row, column_name):
-
-        column = self.headers[column_name]
-
-        value = self.sheet.cell(
-            row=row,
-            column=column
-        ).value
-
-        if isinstance(value, str):
-            value = value.strip()
-
-        return value
-
-
-    def clean_row(self, row):
-
-        region = self.get(row, "BXM")
-        branch = self.get(row, "Joylashgan joyi")
-        address = self.get(row, "Yuridik manzili")
-
-        if region:
-            self.previous_region = region
-        else:
-            region = self.previous_region
-
-        if branch:
-            self.previous_branch = branch
-        else:
-            branch = self.previous_branch
-
-        if address:
-            self.previous_address = address
-        else:
-            address = self.previous_address
-
-        return {
-
-            "region": region,
-
-            "branch": branch,
-
-            "atm_type": self.get(row, "Bankomat turi"),
-
-            "atm_model": self.get(row, "Bankomat modeli"),
-
-            "status": self.get(row, "Holati"),
-
-            "serial_number": str(
-                self.get(row, "Seriya raqami") or ""
-            ).strip(),
-
-            "inventory_number": str(
-                self.get(row, "Inventar raqami") or ""
-            ).strip(),
-
-            "merchant_id": str(
-                self.get(row, "Merchant ID") or ""
-            ).strip(),
-
-            "terminal_id": str(
-                self.get(row, "Terminal ID") or ""
-            ).strip(),
-
-            "legal_address": address,
-
-            "expense": Decimal(
-                self.get(row, "Ohirgi 3 oylik chiqim") or 0
-            ),
-
-            "income": Decimal(
-                self.get(row, "Ohirgi 3 oylik daromad") or 0
-            ),
-        }
-
-
-    def rows(self):
-
-        for row in range(2, self.sheet.max_row + 1):
-
-            serial = self.get(row, "Seriya raqami")
-
-            if not serial:
-                continue
-
-            yield self.clean_row(row)
-
-
-    def read(self):
+    def run(self):
 
         self.load_workbook()
+        self.load_existing_atms()
+        for sheet in SHEETS:
+            self.parse_sheet_only_atms(sheet)
 
-        self.load_headers()
+        self.save_atms()
 
-        for row in self.rows():
+        self.load_existing_atms()
 
-            yield row
+        self.load_existing_months()
+
+        self.load_existing_years()  # <-- SHU YERGA KO'CHDI
+
+        for sheet in SHEETS:
+            self.parse_sheet_statistics(sheet)
+
+        self.save_month_statistics()
+        self.rebuild_year_statistics()
+
+        self.save_year_statistics()
+
+
+
+    def save_atms(self):
+
+        ...
+
+        if self.atm_create_list:
+            ATMTURON.objects.bulk_create(
+                self.atm_create_list,
+                batch_size=500,
+            )
+
+        if self.atm_update_list:
+            ATMTURON.objects.bulk_update(
+                self.atm_update_list,
+                [
+                    "region",
+                    "address",
+                    "model",
+                    "card_type",
+                ],
+                batch_size=500,
+            )
+
+        self.atm_create_list.clear()
+        self.atm_update_list.clear()
+
+    def clean_decimal(self, value):
+
+        if value is None:
+            return Decimal("0")
+
+        value = str(value)
+
+        value = value.replace(" ", "")
+
+        value = value.replace(",", ".")
+
+        if value == "":
+            return Decimal("0")
+
+        try:
+
+            return Decimal(value)
+
+        except Exception:
+
+            return Decimal("0")
+
+    def parse_month_statistics(
+            self,
+            sheet,
+            row,
+            atm,
+    ):
+        """
+        Exceldagi barcha oylik statistikalarni avtomatik parse qiladi.
+
+        MONTHS konstantasiga bog'liq emas.
+        Excelda qaysi yil va oy mavjud bo'lsa,
+        hammasini bazaga saqlaydi.
+        """
+
+        for item in self.month_headers:
+
+            year = item["year"]
+            month = item["month"]
+
+            expense = self.clean_decimal(
+                self.get_cell(
+                    sheet,
+                    row,
+                    item["expense"],
+                )
+            )
+
+            income = self.clean_decimal(
+                self.get_cell(
+                    sheet,
+                    row,
+                    item["income"],
+                )
+            )
+
+            key = (
+                atm.terminal_id,
+                year,
+                month,
+            )
+
+            if key in self.exist_months:
+
+                stat = self.exist_months[key]
+
+                changed = False
+
+                if stat.income != income:
+                    stat.income = income
+                    changed = True
+
+                if stat.expense != expense:
+                    stat.expense = expense
+                    changed = True
+
+                if changed:
+                    self.month_update_list.append(stat)
+
+                continue
+
+            stat = ATMMonthlyStatistic(
+                atm=atm,
+                year=year,
+                month=month,
+                income=income,
+                expense=expense,
+            )
+
+            self.month_create_list.append(stat)
+
+            self.exist_months[key] = stat
+    def load_existing_months(self):
+
+        logger.info("Loading monthly statistics...")
+
+        self.exist_months = {}
+
+        for obj in ATMMonthlyStatistic.objects.select_related("atm"):
+            key = (
+                obj.atm.terminal_id,
+                obj.year,
+                obj.month,
+            )
+
+            self.exist_months[key] = obj
+
+        logger.info(
+            "Loaded %s monthly statistics",
+            len(self.exist_months),
+        )
+
+    def save_month_statistics(self):
+        """
+        Oylik statistikalarni bazaga saqlaydi.
+        """
+
+
+        if self.month_create_list:
+            ATMMonthlyStatistic.objects.bulk_create(
+                self.month_create_list,
+                batch_size=1000,
+            )
+
+        if self.month_update_list:
+            ATMMonthlyStatistic.objects.bulk_update(
+                self.month_update_list,
+                [
+                    "expense",
+                    "income",
+                ],
+                batch_size=1000,
+            )
+
+    def rebuild_year_statistics(self):
+        """
+        Oylik statistikalar asosida yillik statistikalarni qayta hisoblaydi.
+
+        Exceldagi "Jami" ustunlariga bog'liq emas.
+        """
+
+        logger.info("=" * 80)
+        logger.info("REBUILD YEAR STATISTICS FROM MONTHS")
+        logger.info("=" * 80)
+
+        grouped = defaultdict(
+            lambda: {
+                "income": 0,
+                "expense": 0,
+            }
+        )
+
+        #
+        # Avval mavjud bazadagi oyliklar
+        #
+        for stat in self.exist_months.values():
+            key = (
+                stat.atm.terminal_id,
+                stat.year,
+            )
+
+            grouped[key]["income"] += stat.income or 0
+            grouped[key]["expense"] += stat.expense or 0
+
+        #
+        # Keyin yangi create bo'ladigan oylar
+        #
+        for stat in self.month_create_list:
+            key = (
+                stat.atm.terminal_id,
+                stat.year,
+            )
+
+            grouped[key]["income"] += stat.income or 0
+            grouped[key]["expense"] += stat.expense or 0
+
+        #
+        # Har bir yilni update/create qilamiz
+        #
+        for (terminal, year), total in grouped.items():
+
+            atm = self.exist_atms[terminal]
+
+            key = (
+                terminal,
+                year,
+                atm.card_type,
+            )
+
+            if key in self.exist_years:
+
+                obj = self.exist_years[key]
+
+                changed = False
+
+                if obj.income != total["income"]:
+                    obj.income = total["income"]
+                    changed = True
+
+                if obj.expense != total["expense"]:
+                    obj.expense = total["expense"]
+                    changed = True
+
+                if changed:
+                    self.year_update_list.append(obj)
+
+            else:
+
+                obj = ATMYearStatistic(
+                    atm=atm,
+                    year=year,
+                    card_type=atm.card_type,
+                    income=total["income"],
+                    expense=total["expense"],
+                )
+
+                self.year_create_list.append(obj)
+
+                self.exist_years[key] = obj
+
+        logger.info(
+            "Year statistics rebuilt: CREATE=%s UPDATE=%s",
+            len(self.year_create_list),
+            len(self.year_update_list),
+        )
+
+    def parse_sheet_only_atms(self, sheet_name):
+        """
+        Faqat ATMlarni parse qiladi.
+        """
+
+        logger.info("=" * 80)
+        logger.info("Reading ATM sheet: %s", sheet_name)
+        logger.info("=" * 80)
+
+        if sheet_name not in self.workbook.sheetnames:
+            return
+
+        sheet = self.workbook[sheet_name]
+
+        self.headers = self.get_headers(sheet)
+
+        for row in range(DATA_START_ROW, sheet.max_row + 1):
+
+            if not self.validate_row(sheet, row):
+                continue
+
+            self.parse_atm(
+                sheet=sheet,
+                row=row,
+                card_type=sheet_name,
+            )
+
+    def parse_sheet_statistics(self, sheet_name):
+        """
+        Faqat oylik/yillik statistikalarni parse qiladi.
+        """
+
+        logger.info("=" * 80)
+        logger.info("Reading statistics sheet: %s", sheet_name)
+        logger.info("=" * 80)
+
+        if sheet_name not in self.workbook.sheetnames:
+            return
+
+        sheet = self.workbook[sheet_name]
+
+        self.headers = self.get_headers(sheet)
+        self.build_statistics_headers()
+        for row in range(DATA_START_ROW, sheet.max_row + 1):
+
+            if not self.validate_row(sheet, row):
+                continue
+
+            terminal = self.clean_string(
+                self.get_cell(
+                    sheet,
+                    row,
+                    TERMINAL_ID,
+                )
+            )
+
+            atm = self.exist_atms.get(terminal)
+
+            if atm is None:
+                continue
+
+            self.parse_month_statistics(
+                sheet=sheet,
+                row=row,
+                atm=atm,
+
+            )
+
+            self.parse_year_statistics(
+                sheet=sheet,
+                row=row,
+                atm=atm,
+                card_type=sheet_name.upper(),
+
+            )
+        print("=" * 80)
+        print("MONTH HEADERS")
+
+        for item in self.month_headers:
+            print(item)
+
+        print("=" * 80)
+        print("YEAR HEADERS")
+
+        for item in self.year_headers:
+            print(item)
+
+    def load_existing_years(self):
+        """
+        Bazadagi barcha yillik statistikalarni RAM ga yuklaydi.
+        """
+
+        logger.info("=" * 80)
+        logger.info("LOAD EXISTING YEAR STATISTICS")
+        logger.info("=" * 80)
+
+        self.exist_years = {}
+
+        for obj in ATMYearStatistic.objects.select_related("atm"):
+            key = (
+                obj.atm.terminal_id,
+                obj.year,
+                obj.card_type,
+            )
+
+            self.exist_years[key] = obj
+
+        logger.info(
+            "Loaded %s yearly statistics",
+            len(self.exist_years),
+        )
+
+    def parse_year_statistics(
+            self,
+            sheet,
+            row,
+            atm,
+            card_type,
+    ):
+        """
+        Exceldagi yillik statistikalarni parse qiladi.
+
+        Endi bu metod YEARS konstantasiga bog'liq emas.
+        Excelda nechta yil bo'lsa, hammasini avtomatik o'qiydi.
+        """
+
+        for item in self.year_headers:
+
+            year = item["year"]
+
+            expense = self.clean_decimal(
+                self.get_cell(
+                    sheet,
+                    row,
+                    item["expense"],
+                )
+            )
+
+            income = self.clean_decimal(
+                self.get_cell(
+                    sheet,
+                    row,
+                    item["income"],
+                )
+            )
+            if (income or 0) == 0 and (expense or 0) == 0:
+                income, expense = self.calculate_year_total(
+                    atm,
+                    year,
+                )
+
+            print(
+                "YEAR:",
+                atm.terminal_id,
+                year,
+                income,
+                expense,
+            )
+
+            key = (
+                atm.terminal_id,
+                year,
+                card_type,
+            )
+
+            if key in self.exist_years:
+
+                stat = self.exist_years[key]
+
+                changed = False
+
+                if stat.expense != expense:
+                    stat.expense = expense
+                    changed = True
+
+                if stat.income != income:
+                    stat.income = income
+                    changed = True
+
+                if changed:
+                    self.year_update_list.append(stat)
+
+                continue
+
+            duplicate_key = (
+                atm.terminal_id,
+                year,
+                card_type,
+            )
+
+            if key  in self.year_create_keys:
+                continue
+
+            stat = ATMYearStatistic(
+                atm=atm,
+                year=year,
+                card_type=card_type,
+                expense=expense,
+                income=income,
+            )
+
+            self.year_create_list.append(stat)
+            self.year_create_keys.add(key)
+
+            self.exist_years[key] = stat
+
+    def save_year_statistics(self):
+        """
+        Yillik statistikalarni bazaga saqlaydi.
+        """
+
+        logger.info("=" * 80)
+        logger.info("SAVE YEAR STATISTICS")
+        logger.info("CREATE: %s", len(self.year_create_list))
+        logger.info("UPDATE: %s", len(self.year_update_list))
+        logger.info("=" * 80)
+
+        if self.year_create_list:
+            ATMYearStatistic.objects.bulk_create(
+                self.year_create_list,
+                batch_size=500,
+            )
+
+        if self.year_update_list:
+
+            unique = {}
+
+            for obj in self.year_update_list:
+                unique[obj.pk] = obj
+
+            ATMYearStatistic.objects.bulk_update(
+                list(unique.values()),
+                [
+                    "income",
+                    "expense",
+                ],
+                batch_size=500,
+            )
+
+    def build_statistics_headers(self):
+        """
+        Excel headerlarini avtomatik tahlil qiladi.
+
+        - barcha yillarni topadi
+        - barcha oylarni topadi
+        - MONTHS va YEARS konstantalariga bog'liq emas
+        """
+
+        logger.info("=" * 80)
+        logger.info("BUILD STATISTICS HEADERS")
+        logger.info("=" * 80)
+
+        self.month_headers = []
+        self.year_headers = []
+
+        month_names = {
+            "январ": 1,
+            "феврал": 2,
+            "март": 3,
+            "апрел": 4,
+            "апрель": 4,
+            "май": 5,
+            "июн": 6,
+            "июнь": 6,
+            "июл": 7,
+            "июль": 7,
+            "август": 8,
+            "сентябр": 9,
+            "сентабр": 9,
+            "октябр": 10,
+            "октабр": 10,
+            "ноябр": 11,
+            "декабр": 12,
+        }
+
+        month_map = {}
+        year_map = {}
+
+        for header in self.headers.keys():
+
+            if not header:
+                continue
+
+            text = str(header).strip().lower()
+
+            year_match = re.search(r"20\d{2}", text)
+
+            if not year_match:
+                continue
+
+            year = int(year_match.group())
+
+            # ---------------- YEAR -----------------
+
+            if "жами" in text:
+
+                item = year_map.setdefault(
+                    year,
+                    {
+                        "year": year,
+                        "income": None,
+                        "expense": None,
+                    },
+                )
+
+                if "даромад" in text:
+                    item["income"] = header
+
+                if "чиқим" in text:
+                    item["expense"] = header
+
+                continue
+
+            # ---------------- MONTH -----------------
+
+            month = None
+
+            for month_name, month_number in month_names.items():
+
+                if month_name in text:
+                    month = month_number
+                    break
+
+            if month is None:
+                continue
+
+            item = month_map.setdefault(
+                (year, month),
+                {
+                    "year": year,
+                    "month": month,
+                    "income": None,
+                    "expense": None,
+                },
+            )
+
+            if "даромад" in text:
+                item["income"] = header
+
+            if "чиқим" in text:
+                item["expense"] = header
+
+        self.month_headers = sorted(
+            month_map.values(),
+            key=lambda x: (x["year"], x["month"]),
+        )
+
+        self.year_headers = sorted(
+            year_map.values(),
+            key=lambda x: x["year"],
+        )
+
+        logger.info("=" * 80)
+        logger.info("MONTH HEADERS (%s)", len(self.month_headers))
+
+        for item in self.month_headers:
+            logger.info(item)
+
+        logger.info("=" * 80)
+        logger.info("YEAR HEADERS (%s)", len(self.year_headers))
+
+        for item in self.year_headers:
+            logger.info(item)
+
+        print("=" * 80)
+        print("ALL HEADERS")
+
+        for header in self.headers.keys():
+            print(header)
+
+    def calculate_year_total(self, atm, year):
+
+        income = 0
+        expense = 0
+
+        for stat in self.exist_months.values():
+
+            if (
+                    stat.atm.terminal_id == atm.terminal_id
+                    and stat.year == year
+            ):
+                income += stat.income or 0
+                expense += stat.expense or 0
+
+        print(
+            "TOTAL:",
+            atm.terminal_id,
+            year,
+            income,
+            expense,
+        )
+
+        return income, expense

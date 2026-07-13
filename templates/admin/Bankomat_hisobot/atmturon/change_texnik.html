@@ -1,0 +1,64 @@
+{% extends "admin/change_list.html" %}
+
+{% block content_title %}
+
+<h1>ATM Dashboard</h1>
+
+<div style="display:flex;gap:15px;margin:20px 0;flex-wrap:wrap;">
+
+    <div class="module" style="padding:15px;">
+        <h2>Jami ATM</h2>
+        <h1>{{ summary.total }}</h1>
+    </div>
+
+    <div class="module" style="padding:15px;">
+        <h2>🟢 Soz</h2>
+        <h1>{{ summary.soz }}</h1>
+    </div>
+
+    <div class="module" style="padding:15px;">
+        <h2>🔴 Nosoz</h2>
+        <h1>{{ summary.nosoz }}</h1>
+    </div>
+
+    <div class="module" style="padding:15px;">
+        <h2>🔵 Uzcard</h2>
+        <h1>{{ summary.uzcard }}</h1>
+    </div>
+
+    <div class="module" style="padding:15px;">
+        <h2>🟣 Humo</h2>
+        <h1>{{ summary.humo }}</h1>
+    </div>
+
+    <div class="module" style="padding:15px;">
+        <h2>🟠 Vash</h2>
+        <h1>{{ summary.vash }}</h1>
+    </div>
+
+</div>
+
+{{ block.super }}
+
+{% endblock %}
+
+
+{% block object-tools %}
+
+<div style="margin-bottom:15px; display:flex; gap:10px;">
+
+    <a href="{% url 'admin:Bankomat_hisobot_excelimport_add' %}"
+       class="button">
+        📤 Upload Excel
+    </a>
+
+    <a href="update-excel/"
+       class="button">
+        🔄 Excel Update
+    </a>
+
+</div>
+
+{{ block.super }}
+
+{% endblock %}
