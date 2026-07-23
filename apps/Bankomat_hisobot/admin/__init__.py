@@ -1,5 +1,6 @@
 from .inlines import *
-
+from .service_contract import *
+from .service_payment import *
 # Keyingi qismlarda qo'shiladi
 from .atm_admin import *
 # from .monthly_admin import *

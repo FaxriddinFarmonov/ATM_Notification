@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from celery.schedules import crontab
+from decouple import config
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -31,7 +32,11 @@ ALLOWED_HOSTS = [
     "atm-info.turonbank.uz",
     "172.16.100.49",
     "127.0.0.1",
+    "172.17.104.41",  # backend kompyuter
+    "172.17.104.50",  # boshqa kompyuter
     "localhost",
+    ".ngrok-free.app",
+    "flashily-coastal-feel.ngrok-free.dev",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -57,6 +62,7 @@ INSTALLED_APPS = [
     'apps.common',
     'apps.Bankomat_hisobot',
     'apps.maintenance',
+    "apps.ai_analytics",
     "django_filters",
     "rest_framework",
     "drf_spectacular"
@@ -76,7 +82,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ROOT_URLCONF = 'config.urls'
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

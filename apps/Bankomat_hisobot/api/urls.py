@@ -1,4 +1,6 @@
 from django.urls import path
+
+from .views.atm_filter_options import ATMFilterOptionsAPIView
 from .views.maintenance import (
     MaintenanceListAPIView,
     MaintenanceDetailAPIView,
@@ -41,5 +43,10 @@ urlpatterns = [
         MaintenanceDetailAPIView.as_view(),
         name="maintenance-detail",
     ),
+    path(
+            "atms/filters/",
+            ATMFilterOptionsAPIView.as_view(),
+            name="atm-filter-options",
+        ),
     
     ]

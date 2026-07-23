@@ -1,0 +1,16 @@
+MONTHS = {
+    "yanvar": 1,
+    "fevral": 2,
+    "mart": 3,
+    "aprel": 4,
+    "may": 5,
+    "iyun": 6,
+    "июнь": 6,
+    "июн": 6,
+    "iyul": 7,
+    "avgust": 8,
+    "sentabr": 9,
+    "oktabr": 10,
+    "noyabr": 11,
+    "dekabr": 12,
+}
