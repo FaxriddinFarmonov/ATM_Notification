@@ -152,6 +152,8 @@ class ATMBusinessService:
 
             "technical": self.technical_information(),
 
+            "service_contract": self.service_contract(),
+
             "monthly_statistics": self.monthly_statistics(),
 
             "yearly_statistics": self.yearly_statistics(),
@@ -245,3 +247,40 @@ class ATMBusinessService:
             )
 
         return result
+
+    def service_contract(self):
+
+        contract = getattr(
+            self.atm,
+            "service_contract",
+            None,
+        )
+
+        if not contract:
+            return None
+
+        return {
+
+            "btech_monthly_fee": contract.btech_monthly_fee,
+
+            "glob_monthly_fee": contract.glob_monthly_fee,
+
+            "payments": [
+
+                {
+
+                    "year": payment.year,
+
+                    "month": payment.month,
+
+                    "payment_type": payment.payment_type,
+
+                    "amount": payment.amount,
+
+                }
+
+                for payment in contract.payments.all()
+
+            ],
+
+        }

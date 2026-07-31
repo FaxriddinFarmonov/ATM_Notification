@@ -18,7 +18,9 @@ REGION = "БХМ номи"
 ADDRESS = "Банкомат ўрнатилган манзил"
 
 ATM_MODEL = "Bankomat modeli"
+PURCHASE_DATE = "Sotib olingan sana"
 
+PURCHASE_PRICE = "Sotib olingan qiymati"
 
 MONTH_COLUMNS = [
 

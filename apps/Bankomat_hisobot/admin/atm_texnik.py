@@ -22,6 +22,8 @@ class ATMAdmin(admin.ModelAdmin):
         "serial_number",
         "inventory_number",
         "short_address",
+        "purchase_date",
+        "purchase_price",
         "updated_at",
     )
 
@@ -102,6 +104,17 @@ class ATMAdmin(admin.ModelAdmin):
                     "created_at",
                     "updated_at",
                 ),
+            },
+        ),
+        (
+            "Sotib olish",
+            {
+                "fields": (
+                    (
+                        "purchase_date",
+                        "purchase_price",
+                    ),
+                )
             },
         ),
     )

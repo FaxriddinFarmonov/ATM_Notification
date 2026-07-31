@@ -2,7 +2,7 @@
 from django.db import transaction
 from .monitoring_client import MonitoringClient
 from .event_engine import EventEngine
-from apps.atms.models import ATM, ATMCurrentState
+from apps.atms.models  import ATM, ATMCurrentState
 
 class SyncService:
 
@@ -18,34 +18,40 @@ class SyncService:
     def sync_atms(self, data):
 
         for item in data:
+            card = item.get("card", {})
+            extra = card.get("extraAttrs", {})
 
             atm, _ = ATM.objects.update_or_create(
                 external_id=item["id"],
                 defaults={
                     "atm_uid": item.get("atmUid"),
                     "serial": item.get("serial"),
-                    "tid": item.get("tid"),
-                    "branch_number": item.get("card", {}).get("branchNumber"),
-                    "address": item.get("card", {}).get("address"),
+
+                    # Terminal ID ni saqlaymiz
+                    "tid": extra.get("terminalId"),
+
+                    "branch_number": card.get("branchNumber"),
+                    "address": card.get("address"),
                     "model_name": item.get("model", {}).get("name"),
-                    "extra_attrs": item.get("card", {}).get("extraAttrs", {})
+                    "extra_attrs": extra,
                 }
             )
 
             # ⚡ FAST STATE READ (NO SERIALIZATION)
-            old_state = ATMCurrentState.objects.filter(
-                atm_id=atm.id
-            ).values(
-                "agent_status",
-                "cash_amount"
-            ).first() or {}
+            old_state = (
+                    ATMCurrentState.objects.filter(atm_id=atm.id)
+                    .values(
+                        "agent_status",
+                        "cash_amount",
+                    )
+                    .first()
+                    or {}
+            )
 
-            # 1. sync state
+            # 1. Sync current state
             self.sync_current_state(atm, item)
 
-            # 2. sync cassettes (fast version)
-
-            # 3. event engine (ONLY ONCE)
+            # 2. Event engine
             EventEngine(atm, item, old_state).run()
 
     def sync_current_state(self, atm, item):

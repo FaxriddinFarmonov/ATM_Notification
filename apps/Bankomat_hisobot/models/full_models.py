@@ -80,6 +80,19 @@ class ATMTechnical(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True
     )
+    purchase_date = models.DateField(
+        "Sotib olingan sana",
+        null=True,
+        blank=True,
+    )
+
+    purchase_price = models.DecimalField(
+        "Sotib olingan qiymati",
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ("terminal_id",)

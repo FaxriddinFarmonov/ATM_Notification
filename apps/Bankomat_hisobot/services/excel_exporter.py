@@ -7,6 +7,7 @@ from datetime import datetime
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.db.models import Sum, Q
 from apps.maintenance.models import MaintenanceItem
+from collections import defaultdict
 
 from openpyxl.drawing.image import Image
 from pathlib import Path
@@ -128,98 +129,148 @@ class ATMExcelExporter:
 
     def build_service_cache(self):
         """
-        Build monthly/yearly service cache.
+        Build service cache.
 
-        Cache faqat bazadagi mavjud ATMServicePayment yozuvlari asosida quriladi.
-        Hech qanday kelajak oylariga avtomatik tarqatish qilinmaydi.
+        Business rules
+
+        1. Incassation / Rent / Electricity
+           - Faqat bazadagi (year, month) uchun yoziladi.
+           - Hech qanday keyingi oylarga tarqatilmaydi.
+
+        2. BTECH / GLOB
+           - Contract qiymati.
+           - Eng birinchi payment sanasidan boshlab
+             statistikada mavjud barcha oylarga yoziladi.
+
+        3. Year cache
+           - Month cache yig'indisidan avtomatik hisoblanadi.
         """
+
+        from collections import defaultdict
 
         self.month_service_cache = {}
         self.year_service_cache = {}
 
-        contract = getattr(self.atm, "service_contract", None)
+        contract = getattr(
+            self.atm,
+            "service_contract",
+            None,
+        )
 
         if not contract:
             return
 
-        btech = float(contract.btech_monthly_fee or 0)
-        glob = float(contract.glob_monthly_fee or 0)
-
-        payments = (
-            contract.payments
-            .all()
-            .order_by(
+        payments = list(
+            contract.payments.all().order_by(
+                "year",
+                "month",
                 "payment_type",
+            )
+        )
+
+        if not payments:
+            return
+
+        monthly = {}
+        yearly = {}
+
+        # -------------------------------------------------------
+        # Contract boshlanish sanasi
+        # -------------------------------------------------------
+
+        first_payment = min(
+            payments,
+            key=lambda p: (
+                p.year,
+                p.month,
+            ),
+        )
+
+        contract_start = (
+            first_payment.year,
+            first_payment.month,
+        )
+
+        # -------------------------------------------------------
+        # Statistikada mavjud oylarni yaratamiz
+        # -------------------------------------------------------
+
+        statistics = (
+            ATMMonthlyStatistic.objects
+            .filter(
+                atm=self.atm,
+            )
+            .order_by(
                 "year",
                 "month",
             )
         )
-        contract_year = None
 
-        if payments.exists():
-            contract_year = payments.first().year
+        for stat in statistics:
 
-        from collections import defaultdict
+            key = (
+                stat.year,
+                stat.month,
+            )
 
-        payments_by_type = defaultdict(list)
+            monthly[key] = {
+                "btech": 0,
+                "glob": 0,
+                "incassation": 0,
+                "rent": 0,
+                "electricity": 0,
+            }
+
+            # Contract boshlangan bo'lsa
+            if key >= contract_start:
+                monthly[key]["btech"] = float(
+                    contract.btech_monthly_fee or 0
+                )
+
+                monthly[key]["glob"] = float(
+                    contract.glob_monthly_fee or 0
+                )
+
+        # -------------------------------------------------------
+        # Paymentlarni faqat o'z oyiga yozamiz
+        # -------------------------------------------------------
 
         for payment in payments:
-            payments_by_type[payment.payment_type].append(payment)
 
-        monthly = {}
+            key = (
+                payment.year,
+                payment.month,
+            )
 
-        for payment_type, items in payments_by_type.items():
+            if key not in monthly:
+                continue
 
-            for index, current in enumerate(items):
+            if payment.payment_type == ATMServicePayment.PaymentType.INCASSATION:
 
-                start_year = current.year
-                start_month = current.month
+                monthly[key]["incassation"] = float(
+                    payment.amount
+                )
 
-                if index + 1 < len(items):
+            elif payment.payment_type == ATMServicePayment.PaymentType.RENT:
 
-                    end_year = items[index + 1].year
-                    end_month = items[index + 1].month
+                monthly[key]["rent"] = float(
+                    payment.amount
+                )
 
-                else:
+            elif payment.payment_type == ATMServicePayment.PaymentType.ELECTRICITY:
 
-                    end_year = start_year + 20
-                    end_month = 12
+                monthly[key]["electricity"] = float(
+                    payment.amount
+                )
 
-                year = start_year
-                month = start_month
-
-                while (year, month) < (end_year, end_month):
-
-                    key = (year, month)
-
-                    if key not in monthly:
-                        monthly[key] = {
-                            "btech": 0,
-                            "glob": 0,
-                            "incassation": 0,
-                            "rent": 0,
-                            "electricity": 0,
-                        }
-
-                    if payment_type == ATMServicePayment.PaymentType.INCASSATION:
-                        monthly[key]["incassation"] = float(current.amount)
-
-                    elif payment_type == ATMServicePayment.PaymentType.RENT:
-                        monthly[key]["rent"] = float(current.amount)
-
-                    elif payment_type == ATMServicePayment.PaymentType.ELECTRICITY:
-                        monthly[key]["electricity"] = float(current.amount)
-
-                    month += 1
-
-                    if month == 13:
-                        month = 1
-                        year += 1
+        # -------------------------------------------------------
         # Year cache
-        for (year, month), values in self.month_service_cache.items():
+        # -------------------------------------------------------
 
-            if year not in self.year_service_cache:
-                self.year_service_cache[year] = {
+        for (year, month), values in monthly.items():
+
+            if year not in yearly:
+                yearly[year] = {
                     "btech": 0,
                     "glob": 0,
                     "incassation": 0,
@@ -227,11 +278,15 @@ class ATMExcelExporter:
                     "electricity": 0,
                 }
 
-            self.year_service_cache[year]["btech"] += values["btech"]
-            self.year_service_cache[year]["glob"] += values["glob"]
-            self.year_service_cache[year]["incassation"] += values["incassation"]
-            self.year_service_cache[year]["rent"] += values["rent"]
-            self.year_service_cache[year]["electricity"] += values["electricity"]
+            yearly[year]["btech"] += values["btech"]
+            yearly[year]["glob"] += values["glob"]
+            yearly[year]["incassation"] += values["incassation"]
+            yearly[year]["rent"] += values["rent"]
+            yearly[year]["electricity"] += values["electricity"]
+
+        self.month_service_cache = monthly
+
+        self.year_service_cache = yearly
     def write_information(self):
 
         ws = self.info_sheet
@@ -330,8 +385,21 @@ class ATMExcelExporter:
 
             ("ATM Model", self.atm.model),
 
-        ]
+            (
+                "Purchase Date",
+                tech.purchase_date.strftime("%d.%m.%Y")
+                if tech and tech.purchase_date
+                else "",
+            ),
 
+            (
+                "Purchase Price",
+                float(tech.purchase_price)
+                if tech and tech.purchase_price
+                else "",
+            ),
+
+        ]
         thin = Side(style="thin")
 
         for key, value in data:
@@ -451,7 +519,20 @@ class ATMExcelExporter:
             "Serial Number",
             "Merchant ID",
             "Inventory Number",
+            "Purchase Date",
+            "Purchase Price",
         ])
+        totals = {
+            "income": 0.0,
+            "expense": 0.0,
+            "repair": 0.0,
+            "quantity": 0.0,
+            "btech": 0.0,
+            "glob": 0.0,
+            "incassation": 0.0,
+            "rent": 0.0,
+            "electricity": 0.0,
+        }
 
         statistics = (
             ATMMonthlyStatistic.objects
@@ -547,65 +628,25 @@ class ATMExcelExporter:
                 ),
                 {},
             )
+            service = self.month_service_cache.get(
+                (
+                    item.year,
+                    item.month,
+                ),
+                {},
+            )
 
-            btech = 0
-            glob = 0
-            rent = 0
-            electricity = 0
-            incassation = 0
+            btech = float(service.get("btech", 0))
+            glob = float(service.get("glob", 0))
 
-            if (
-                    contract
-                    and contract_year
-                    and item.year == contract_year
-            ):
-
-                btech = float(
-                    contract.btech_monthly_fee
-                    or 0
-                )
-
-                glob = float(
-                    contract.glob_monthly_fee
-                    or 0
-                )
-
-                rent_payment = (
-                    contract.payments
-                    .filter(
-                        year=contract_year,
-                        payment_type=ATMServicePayment.PaymentType.RENT,
-                    )
-                    .first()
-                )
-                electricity = 0
-
-                electricity_payment = (
-                    contract.payments
-                    .filter(
-                        year=contract_year,
-                        payment_type=ATMServicePayment.PaymentType.ELECTRICITY,
-                    )
-                    .first()
-                )
-
-                if electricity_payment:
-                    electricity = float(
-                        electricity_payment.amount
-                    )
-
-                if rent_payment:
-                    rent = float(
-                        rent_payment.amount
-                    )
+            incassation = float(service.get("incassation", 0))
+            rent = float(service.get("rent", 0))
+            electricity = float(service.get("electricity", 0))
 
             ws.append([
                 item.year,
 
-                months.get(
-                    item.month,
-                    item.month,
-                ),
+                months.get(item.month, item.month),
 
                 float(item.income),
 
@@ -619,12 +660,7 @@ class ATMExcelExporter:
 
                 glob,
 
-                float(
-                    service.get(
-                        "incassation",
-                        0,
-                    )
-                ),
+                incassation,
 
                 rent,
 
@@ -637,7 +673,46 @@ class ATMExcelExporter:
                 tech.merchant_id if tech else "",
 
                 tech.inventory_number if tech else "",
+                tech.purchase_date.strftime("%d.%m.%Y")
+                if tech and tech.purchase_date
+                else "",
+
+                float(tech.purchase_price)
+                if tech and tech.purchase_price
+                else "",
             ])
+            totals["income"] += float(item.income)
+            totals["expense"] += float(item.expense)
+            totals["repair"] += float(repair)
+            totals["quantity"] += float(quantity)
+            totals["btech"] += btech
+            totals["glob"] += glob
+            totals["incassation"] += incassation
+            totals["rent"] += rent
+            totals["electricity"] += electricity
+        ws.append([
+            "TOTAL",
+            "",
+
+            totals["income"],
+            totals["expense"],
+
+            totals["repair"],
+
+            totals["quantity"],
+
+            totals["btech"],
+            totals["glob"],
+
+            totals["incassation"],
+            totals["rent"],
+            totals["electricity"],
+
+            "",
+            "",
+            "",
+            "",
+        ])
 
     def write_year_statistics(self):
 
@@ -664,7 +739,20 @@ class ATMExcelExporter:
             "Serial Number",
             "Merchant ID",
             "Inventory Number",
+            "Purchase Date",
+            "Purchase Price",
         ])
+        totals = {
+            "income": 0.0,
+            "expense": 0.0,
+            "repair": 0.0,
+            "quantity": 0.0,
+            "btech": 0.0,
+            "glob": 0.0,
+            "incassation": 0.0,
+            "rent": 0.0,
+            "electricity": 0.0,
+        }
 
         statistics = (
             ATMYearStatistic.objects
@@ -682,28 +770,6 @@ class ATMExcelExporter:
             None,
         )
 
-        contract = getattr(
-            self.atm,
-            "service_contract",
-            None,
-        )
-
-        contract_year = None
-
-        if contract:
-
-            first_payment = (
-                contract.payments
-                .order_by(
-                    "year",
-                    "month",
-                )
-                .first()
-            )
-
-            if first_payment:
-                contract_year = first_payment.year
-
         for item in statistics:
 
             repair = 0
@@ -720,114 +786,123 @@ class ATMExcelExporter:
 
                 repair = (
                         repairs.aggregate(
-                            total=Sum(
-                                "total_with_vat",
-                            )
+                            total=Sum("total_with_vat"),
                         )["total"]
                         or 0
                 )
 
                 quantity = (
                         repairs.aggregate(
-                            total=Sum(
-                                "quantity",
-                            )
+                            total=Sum("quantity"),
                         )["total"]
                         or 0
                 )
 
-            months_count = (
-                ATMMonthlyStatistic.objects
-                .filter(
-                    atm=self.atm,
-                    year=item.year,
-                )
-                .count()
-            )
+            # -----------------------------------------
+            # Service cache
+            # -----------------------------------------
 
             service = self.year_service_cache.get(
                 item.year,
                 {},
             )
 
-            btech = 0
-            glob = 0
-            rent = 0
-            electricity = 0
-
-            if (
-                    contract
-                    and contract_year
-                    and item.year == contract_year
-            ):
-
-                btech = float(
-                    contract.btech_monthly_fee or 0
-                ) * months_count
-
-                glob = float(
-                    contract.glob_monthly_fee or 0
-                ) * months_count
-
-                rent_payment = (
-                    contract.payments
-                    .filter(
-                        year=contract_year,
-                        payment_type=ATMServicePayment.PaymentType.RENT,
-                    )
-                    .first()
+            btech = float(
+                service.get(
+                    "btech",
+                    0,
                 )
+            )
 
-                if rent_payment:
-                    rent = float(
-                        rent_payment.amount
-                    ) * months_count
-
-                electricity_payment = (
-                    contract.payments
-                    .filter(
-                        year=contract_year,
-                        payment_type=ATMServicePayment.PaymentType.ELECTRICITY,
-                    )
-                    .first()
+            glob = float(
+                service.get(
+                    "glob",
+                    0,
                 )
+            )
 
-                if electricity_payment:
-                    electricity = float(
-                        electricity_payment.amount
-                    ) * months_count
+            incassation = float(
+                service.get(
+                    "incassation",
+                    0,
+                )
+            )
+
+            rent = float(
+                service.get(
+                    "rent",
+                    0,
+                )
+            )
+
+            electricity = float(
+                service.get(
+                    "electricity",
+                    0,
+                )
+            )
 
             ws.append([
                 item.year,
 
                 float(item.income),
-
                 float(item.expense),
 
                 float(repair),
-
                 float(quantity),
 
                 btech,
-
                 glob,
 
-                float(
-                    service.get(
-                        "incassation",
-                        0,
-                    )
-                ),
-
+                incassation,
                 rent,
-
                 electricity,
 
                 tech.status if tech else "",
                 tech.serial_number if tech else "",
                 tech.merchant_id if tech else "",
                 tech.inventory_number if tech else "",
+
+                tech.purchase_date.strftime("%d.%m.%Y")
+                if tech and tech.purchase_date
+                else "",
+
+                float(tech.purchase_price)
+                if tech and tech.purchase_price
+                else "",
             ])
+            totals["income"] += float(item.income)
+            totals["expense"] += float(item.expense)
+            totals["repair"] += float(repair)
+            totals["quantity"] += float(quantity)
+            totals["btech"] += btech
+            totals["glob"] += glob
+            totals["incassation"] += incassation
+            totals["rent"] += rent
+            totals["electricity"] += electricity
+        ws.append([])
+
+        ws.append([
+            "TOTAL",
+
+            totals["income"],
+            totals["expense"],
+
+            totals["repair"],
+            totals["quantity"],
+
+            totals["btech"],
+            totals["glob"],
+
+            totals["incassation"],
+            totals["rent"],
+            totals["electricity"],
+
+            "",
+            "",
+            "",
+            "",
+        ])
     def auto_fit_columns(self):
 
         for column in self.sheet.columns:

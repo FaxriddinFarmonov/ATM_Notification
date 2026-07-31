@@ -2,6 +2,7 @@ import datetime
 from pathlib import Path
 from io import BytesIO
 from collections import defaultdict
+from openpyxl.styles import Font, PatternFill
 
 from apps.maintenance.models import MaintenanceItem
 from django.db.models import Sum
@@ -39,7 +40,7 @@ class FullATMExcelExporter:
         4. Year Statistics
     """
 
-    def __init__(self):
+    def __init__(self, queryset=None):
 
         # 1. Technical cache
         self.technical_cache = {
@@ -75,22 +76,38 @@ class FullATMExcelExporter:
         self.year_sheet = self.workbook.create_sheet("Year Statistics")
 
         # 4. ATM lar
-        self.atms = (
-            ATMTURON.objects
-            .select_related("technical")
-            .prefetch_related(
-                Prefetch("service_contract__payments"),
-                Prefetch(
-                    "monthly_statistics",
-                    queryset=ATMMonthlyStatistic.objects.order_by("year", "month"),
-                ),
-                Prefetch(
-                    "year_statistics",
-                    queryset=ATMYearStatistic.objects.order_by("year"),
-                ),
+        if queryset is None:
+
+            self.atms = (
+                ATMTURON.objects
+                .select_related("technical")
+                .prefetch_related(
+                    Prefetch(
+                        "service_contract__payments",
+                    ),
+                    Prefetch(
+                        "monthly_statistics",
+                        queryset=ATMMonthlyStatistic.objects.order_by(
+                            "year",
+                            "month",
+                        ),
+                    ),
+                    Prefetch(
+                        "year_statistics",
+                        queryset=ATMYearStatistic.objects.order_by(
+                            "year",
+                        ),
+                    ),
+                )
+                .order_by(
+                    "region",
+                    "terminal_id",
+                )
             )
-            .order_by("region", "terminal_id")
-        )
+
+        else:
+
+            self.atms = queryset
 
         # 5. Service cache
         self.service_month_cache = {}
@@ -234,6 +251,21 @@ class FullATMExcelExporter:
 
             # Header balandligi
             sheet.row_dimensions[1].height = 24
+
+            for sheet in (self.month_sheet, self.year_sheet):
+
+                row = sheet.max_row
+
+                for cell in sheet[row]:
+                    cell.font = Font(
+                        bold=True,
+                    )
+
+                    cell.fill = PatternFill(
+                        fill_type="solid",
+                        start_color="FFF2CC",
+                        end_color="FFF2CC",
+                    )
     def prepare_document(self):
         props = self.workbook.properties
 
@@ -298,11 +330,29 @@ class FullATMExcelExporter:
                 ].width = min(length + 4, 40)
 
     def build_service_cache(self):
+        """
+        Build service cache for ALL ATMs.
 
-        from collections import defaultdict
+        Rules
+        -----
+        1. BTECH / GLOB
+           - ATMServiceContract dan olinadi.
+           - Eng birinchi payment mavjud bo'lgan oydan boshlab
+             barcha statistik oylarga qo'llaniladi.
 
-        self.service_month_cache = defaultdict(dict)
-        self.service_year_cache = defaultdict(dict)
+        2. Incassation / Rent / Electricity
+           - Faqat bazadagi (year, month) yozuviga yoziladi.
+           - Hech qachon keyingi oylarga tarqatilmaydi.
+
+        3. service_month_cache
+           key = (atm_id, year, month)
+
+        4. service_year_cache
+           key = (atm_id, year)
+        """
+
+        self.service_month_cache = {}
+        self.service_year_cache = {}
 
         for atm in self.atms:
 
@@ -315,123 +365,133 @@ class FullATMExcelExporter:
             if not contract:
                 continue
 
-            payments = list(
-                contract.payments.all()
+            statistics = list(
+                atm.monthly_statistics.all().order_by(
+                    "year",
+                    "month",
+                )
             )
 
-            if not payments:
+            if not statistics:
                 continue
 
-            contract_year = min(
-                payment.year
-                for payment in payments
+            payments = list(
+                contract.payments.all().order_by(
+                    "year",
+                    "month",
+                    "payment_type",
+                )
             )
 
-            rent_payment = next(
-                (
-                    payment.amount
-                    for payment in payments
-                    if payment.payment_type == ATMServicePayment.PaymentType.RENT
-                ),
-                0,
-            )
+            contract_start = None
 
-            electricity_payment = next(
-                (
-                    payment.amount
-                    for payment in payments
-                    if payment.payment_type == ATMServicePayment.PaymentType.ELECTRICITY
-                ),
-                0,
-            )
-
-            for month in range(1, 13):
-                self.service_month_cache[
-                    (
-                        atm.id,
-                        contract_year,
-                        month,
-                    )
-                ] = {
-
-                    "btech": float(
-                        contract.btech_monthly_fee
+            if payments:
+                first_payment = min(
+                    payments,
+                    key=lambda p: (
+                        p.year,
+                        p.month,
                     ),
+                )
 
-                    "glob": float(
-                        contract.glob_monthly_fee
-                    ),
+                contract_start = (
+                    first_payment.year,
+                    first_payment.month,
+                )
 
-                    "rent": float(
-                        rent_payment
-                    ),
+            # ----------------------------------------
+            # Monthly cache
+            # ----------------------------------------
 
-                    "electricity": float(
-                        electricity_payment
-                    ),
+            for stat in statistics:
 
-                    "incassation": 0,
+                key = (
+                    atm.id,
+                    stat.year,
+                    stat.month,
+                )
+
+                values = {
+                    "btech": 0.0,
+                    "glob": 0.0,
+                    "incassation": 0.0,
+                    "rent": 0.0,
+                    "electricity": 0.0,
                 }
 
-            incassations = defaultdict(float)
+                if (
+                        contract_start
+                        and (stat.year, stat.month) >= contract_start
+                ):
+                    values["btech"] = float(
+                        contract.btech_monthly_fee or 0
+                    )
+
+                    values["glob"] = float(
+                        contract.glob_monthly_fee or 0
+                    )
+
+                self.service_month_cache[key] = values
+
+            # ----------------------------------------
+            # Paymentlarni faqat o'z oyiga yozamiz
+            # ----------------------------------------
 
             for payment in payments:
 
-                if (
-                        payment.payment_type
-                        == ATMServicePayment.PaymentType.INCASSATION
-                ):
-                    incassations[
-                        (
-                            payment.year,
-                            payment.month,
-                        )
-                    ] += float(
+                key = (
+                    atm.id,
+                    payment.year,
+                    payment.month,
+                )
+
+                if key not in self.service_month_cache:
+                    continue
+
+                if payment.payment_type == ATMServicePayment.PaymentType.INCASSATION:
+
+                    self.service_month_cache[key]["incassation"] = float(
                         payment.amount
                     )
 
-            for key, value in incassations.items():
+                elif payment.payment_type == ATMServicePayment.PaymentType.RENT:
 
-                year, month = key
+                    self.service_month_cache[key]["rent"] = float(
+                        payment.amount
+                    )
 
-                cache_key = (
-                    atm.id,
-                    year,
-                    month,
-                )
+                elif payment.payment_type == ATMServicePayment.PaymentType.ELECTRICITY:
 
-                if cache_key not in self.service_month_cache:
-                    self.service_month_cache[
-                        cache_key
-                    ] = {}
+                    self.service_month_cache[key]["electricity"] = float(
+                        payment.amount
+                    )
 
-                self.service_month_cache[
-                    cache_key
-                ]["incassation"] = value
+        # ----------------------------------------
+        # Year cache
+        # ----------------------------------------
 
-            self.service_year_cache[
-                (
-                    atm.id,
-                    contract_year,
-                )
-            ] = {
+        for (atm_id, year, month), values in self.service_month_cache.items():
 
-                "btech": float(
-                    contract.btech_monthly_fee
-                ),
+            year_key = (
+                atm_id,
+                year,
+            )
 
-                "glob": float(
-                    contract.glob_monthly_fee
-                ),
+            if year_key not in self.service_year_cache:
+                self.service_year_cache[year_key] = {
+                    "btech": 0.0,
+                    "glob": 0.0,
+                    "incassation": 0.0,
+                    "rent": 0.0,
+                    "electricity": 0.0,
+                }
 
-                "rent": float(
-                    rent_payment
-                ),
+            self.service_year_cache[year_key]["btech"] += values["btech"]
+            self.service_year_cache[year_key]["glob"] += values["glob"]
+            self.service_year_cache[year_key]["incassation"] += values["incassation"]
+            self.service_year_cache[year_key]["rent"] += values["rent"]
+            self.service_year_cache[year_key]["electricity"] += values["electricity"]
 
-                "electricity": float(
-                    electricity_payment
-                ),
-            }
 
     def write_information(self):
 
@@ -450,6 +510,8 @@ class FullATMExcelExporter:
             "Inventory Number",
             "23510 Account",
             "45265 Account",
+            "Purchase Date",
+            "Purchase Price",
         ]
 
         ws.append(headers)
@@ -470,8 +532,9 @@ class FullATMExcelExporter:
                 tech.inventory_number if tech else "",
                 tech.account_23510 if tech else "",
                 tech.account_45265 if tech else "",
+                tech.purchase_date if tech else "",
+                float(tech.purchase_price or 0) if tech else 0,
             ])
-
 
     def write_month_statistics(self):
 
@@ -482,27 +545,36 @@ class FullATMExcelExporter:
             "Processing",
             "Year",
             "Month",
-
             "Income",
             "Cash Withdraw",
-
             "Repair Cost",
-
             "Quantity",
             "BTECH Service Monthly Fee",
             "GLOB Service Monthly Fee",
             "Incassation Payment",
             "Rent Payment",
             "Electricity Payment",
-
             "Status",
             "Serial Number",
             "Merchant ID",
             "Inventory Number",
-
+            "Purchase Date",
+            "Purchase Price",
             "ATM Name",
             "Region",
         ])
+        totals = {
+            "income": 0.0,
+            "expense": 0.0,
+            "repair": 0.0,
+            "quantity": 0.0,
+            "btech": 0.0,
+            "glob": 0.0,
+            "incassation": 0.0,
+            "rent": 0.0,
+            "electricity": 0.0,
+        }
+
 
         months = {
             1: "January",
@@ -519,12 +591,14 @@ class FullATMExcelExporter:
             12: "December",
         }
 
+
+
+        atm_ids = self.atms.values_list("id", flat=True)
+
         statistics = (
             ATMMonthlyStatistic.objects
-            .select_related(
-                "atm",
-                "atm__technical",
-            )
+            .filter(atm_id__in=atm_ids)
+            .select_related("atm")
             .order_by(
                 "atm__region",
                 "atm__terminal_id",
@@ -534,13 +608,16 @@ class FullATMExcelExporter:
         )
 
         for item in statistics:
+
             tech = self.technical_cache.get(
                 item.atm.terminal_id.strip().upper()
             )
 
-            if tech:
+            repair = 0
+            quantity = 0
 
-                items = self.maintenance_cache.get(
+            if tech:
+                repairs = self.maintenance_cache.get(
                     (
                         tech.id,
                         item.year,
@@ -549,12 +626,16 @@ class FullATMExcelExporter:
                     [],
                 )
 
-            else:
+                repair = sum(
+                    float(r.total_with_vat or 0)
+                    for r in repairs
+                )
 
-                items = []
-            repair_cost = 0
-            vat = 0
-            quantity = 0
+                quantity = sum(
+                    float(r.quantity or 0)
+                    for r in repairs
+                )
+
             service = self.service_month_cache.get(
                 (
                     item.atm.id,
@@ -564,58 +645,91 @@ class FullATMExcelExporter:
                 {},
             )
 
-
-
-            for i in items:
-
-                repair_cost += i.total_with_vat
-                quantity += i.quantity
-
             ws.append([
                 item.atm.terminal_id,
                 item.atm.card_type,
-
                 item.year,
-                months[item.month],
+                months.get(item.month, item.month),
 
                 float(item.income),
                 float(item.expense),
 
-                float(repair_cost),
+                repair,
+                quantity,
 
-                float(quantity),
                 float(service.get("btech", 0)),
-
                 float(service.get("glob", 0)),
 
                 float(service.get("incassation", 0)),
-
                 float(service.get("rent", 0)),
-
                 float(service.get("electricity", 0)),
 
                 tech.status if tech else "",
                 tech.serial_number if tech else "",
                 tech.merchant_id if tech else "",
                 tech.inventory_number if tech else "",
-
+                tech.purchase_date if tech else "",
+                float(tech.purchase_price or 0) if tech else 0,
                 item.atm.name,
                 item.atm.region,
             ])
+            totals["income"] += float(item.income)
+            totals["expense"] += float(item.expense)
+            totals["repair"] += repair
+            totals["quantity"] += quantity
+            totals["btech"] += float(service.get("btech", 0))
+            totals["glob"] += float(service.get("glob", 0))
+            totals["incassation"] += float(service.get("incassation", 0))
+            totals["rent"] += float(service.get("rent", 0))
+            totals["electricity"] += float(service.get("electricity", 0))
 
+        ws.append([])
+
+        total_row = [
+            "TOTAL",
+            "",
+            "",
+            "",
+
+            totals["income"],
+            totals["expense"],
+
+            totals["repair"],
+            totals["quantity"],
+
+            totals["btech"],
+            totals["glob"],
+
+            totals["incassation"],
+            totals["rent"],
+            totals["electricity"],
+
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+
+        ws.append(total_row)
     def write_year_statistics(self):
 
         ws = self.year_sheet
 
         ws.append([
             "Terminal ID",
-            "Processing",
+            "Card Type",
+
             "Year",
 
             "Income",
             "Cash Withdraw",
 
             "Year Repair Cost",
+
             "Quantity",
 
             "BTECH Service Year Fee",
@@ -630,126 +744,211 @@ class FullATMExcelExporter:
             "Merchant ID",
             "Inventory Number",
 
-            "ATM Name",
-            "Region",
+            "Purchase Date",
+            "Purchase Price",
         ])
-
-        technical_cache = {
-            tech.terminal_id.strip().upper(): tech
-            for tech in ATMTechnical.objects.all()
+        totals = {
+            "income": 0.0,
+            "expense": 0.0,
+            "repair": 0.0,
+            "quantity": 0.0,
+            "btech": 0.0,
+            "glob": 0.0,
+            "incassation": 0.0,
+            "rent": 0.0,
+            "electricity": 0.0,
         }
 
-        maintenance_cost_cache = defaultdict(float)
-        maintenance_qty_cache = defaultdict(float)
+        for atm in self.atms:
 
-        for item in MaintenanceItem.objects.exclude(serial_number=""):
-            key = (
-                item.serial_number.strip().upper(),
-                item.protocol_date.year,
+            statistics = (
+                atm.year_statistics.all()
+                .order_by("year")
             )
 
-            maintenance_cost_cache[key] += float(item.total_with_vat)
-            maintenance_qty_cache[key] += float(item.quantity)
-
-        months_cache = defaultdict(int)
-
-        for row in ATMMonthlyStatistic.objects.values(
-                "atm_id",
-                "year",
-        ):
-            months_cache[
-                (
-                    row["atm_id"],
-                    row["year"],
-                )
-            ] += 1
-
-        statistics = (
-            ATMYearStatistic.objects
-            .select_related("atm")
-            .order_by(
-                "atm__region",
-                "atm__terminal_id",
-                "year",
-            )
-        )
-
-        for item in statistics:
-
-            tech = technical_cache.get(
-                item.atm.terminal_id.strip().upper()
+            tech = getattr(
+                atm,
+                "technical",
+                None,
             )
 
-            repair = 0
-            quantity = 0
 
-            service = {}
+            for item in statistics:
 
-            months_count = months_cache.get(
-                (
-                    item.atm.id,
-                    item.year,
-                ),
-                0,
-            )
+                repair = 0
+                quantity = 0
 
-            if tech:
-                key = (
-                    tech.serial_number.strip().upper(),
-                    item.year,
-                )
+                if tech:
+                    repairs = (
+                        MaintenanceItem.objects.filter(
+                            technical=tech,
+                            protocol_date__year=item.year,
+                        )
+                    )
 
-                repair = maintenance_cost_cache.get(
-                    key,
-                    0,
-                )
+                    repair = float(
+                        repairs.aggregate(
+                            total=Sum("total_with_vat")
+                        )["total"] or 0
+                    )
 
-                quantity = maintenance_qty_cache.get(
-                    key,
-                    0,
-                )
+                    quantity = float(
+                        repairs.aggregate(
+                            total=Sum("quantity")
+                        )["total"] or 0
+                    )
 
                 service = self.service_year_cache.get(
                     (
-                        item.atm.id,
+                        atm.id,
                         item.year,
                     ),
                     {},
                 )
+                totals["income"] += float(item.income)
+                totals["expense"] += float(item.expense)
+                totals["repair"] += repair
+                totals["quantity"] += quantity
+                totals["btech"] += float(service.get("btech", 0))
+                totals["glob"] += float(service.get("glob", 0))
+                totals["incassation"] += float(service.get("incassation", 0))
+                totals["rent"] += float(service.get("rent", 0))
+                totals["electricity"] += float(service.get("electricity", 0))
 
-            ws.append([
-                item.atm.terminal_id,
-                item.card_type,
+                ws.append([
 
-                item.year,
+                    atm.terminal_id,
 
-                float(item.income),
-                float(item.expense),
+                    atm.card_type,
 
-                float(repair),
-                float(quantity),
+                    item.year,
 
-                float(service.get("btech", 0) * months_count),
+                    float(item.income),
 
-                float(service.get("glob", 0) * months_count),
+                    float(item.expense),
 
-                float(service.get("incassation", 0)),
+                    float(repair),
 
-                float(service.get("rent", 0) * months_count),
+                    float(quantity),
 
-                float(service.get("electricity", 0) * months_count),
+                    float(
+                        service.get(
+                            "btech",
+                            0,
+                        )
+                    ),
 
-                tech.status if tech else "",
-                tech.serial_number if tech else "",
-                tech.merchant_id if tech else "",
-                tech.inventory_number if tech else "",
+                    float(
+                        service.get(
+                            "glob",
+                            0,
+                        )
+                    ),
 
-                item.atm.name,
-                item.atm.region,
-            ])
+                    float(
+                        service.get(
+                            "incassation",
+                            0,
+                        )
+                    ),
 
+                    float(
+                        service.get(
+                            "rent",
+                            0,
+                        )
+                    ),
+
+                    float(
+                        service.get(
+                            "electricity",
+                            0,
+                        )
+                    ),
+
+                    tech.status if tech else "",
+
+                    tech.serial_number if tech else "",
+
+                    tech.merchant_id if tech else "",
+
+                    tech.inventory_number if tech else "",
+                    tech.purchase_date if tech else "",
+                    float(tech.purchase_price or 0) if tech else 0,
+
+                ])
+            ws.append([])
+
+        total_row = [
+            "TOTAL",  # Terminal ID
+            "",  # Card Type
+            "",  # Year
+
+            totals["income"],
+            totals["expense"],
+
+            totals["repair"],
+            totals["quantity"],
+
+            totals["btech"],
+            totals["glob"],
+
+            totals["incassation"],
+            totals["rent"],
+            totals["electricity"],
+
+            "",  # Status
+            "",  # Serial
+            "",  # Merchant
+            "",  # Inventory
+            "",  # Purchase Date
+            "",  # Purchase Price
+        ]
+
+        ws.append(total_row)
     def write_summary(self):
+        atms = list(self.atms)
 
+        atm_ids = [atm.id for atm in atms]
+
+        technical_count = sum(
+            1
+            for atm in atms
+            if getattr(atm, "technical", None)
+        )
+
+        active_count = sum(
+            1
+            for atm in atms
+            if atm.is_active
+        )
+
+        uzcard_count = sum(
+            1
+            for atm in atms
+            if atm.card_type == "UZCARD"
+        )
+
+        humo_count = sum(
+            1
+            for atm in atms
+            if atm.card_type == "HUMO"
+        )
+
+        region_count = len(
+            {
+                atm.region
+                for atm in atms
+            }
+        )
+
+        monthly_count = ATMMonthlyStatistic.objects.filter(
+            atm_id__in=atm_ids,
+        ).count()
+
+        year_count = ATMYearStatistic.objects.filter(
+            atm_id__in=atm_ids,
+        ).count()
         ws = self.summary_sheet
 
         # ======================================================
@@ -794,52 +993,42 @@ class FullATMExcelExporter:
 
             (
                 "Total ATM",
-                ATMTURON.objects.count(),
+                len(atms),
             ),
 
             (
                 "Technical Linked",
-                ATMTechnical.objects.filter(
-                    atm__isnull=False
-                ).count(),
+                technical_count,
             ),
 
             (
                 "Active ATM",
-                ATMTURON.objects.filter(
-                    is_active=True
-                ).count(),
+                active_count,
             ),
 
             (
                 "UZCARD ATM",
-                ATMTURON.objects.filter(
-                    card_type="UZCARD"
-                ).count(),
+                uzcard_count,
             ),
 
             (
                 "HUMO ATM",
-                ATMTURON.objects.filter(
-                    card_type="HUMO"
-                ).count(),
+                humo_count,
             ),
 
             (
                 "Regions",
-                ATMTURON.objects.values(
-                    "region"
-                ).distinct().count(),
+                region_count,
             ),
 
             (
                 "Monthly Statistics",
-                ATMMonthlyStatistic.objects.count(),
+                monthly_count,
             ),
 
             (
                 "Year Statistics",
-                ATMYearStatistic.objects.count(),
+                year_count,
             ),
 
         ]

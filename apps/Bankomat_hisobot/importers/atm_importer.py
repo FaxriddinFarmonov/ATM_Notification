@@ -1,8 +1,8 @@
 from pathlib import Path
-
+from datetime import datetime
 from django.db import transaction
 from openpyxl import load_workbook
-
+from decimal import Decimal
 from ..models.ATMMonthlyStatistic import ATMTURON
 from ..models.full_models import ATMTechnical
 
@@ -90,6 +90,20 @@ class ATMExcelImporter:
             terminal_id=terminal_id,
             account_23510=self.value(row, "23510"),
             account_45265=self.value(row, "45265"),
+
+            purchase_date=self.parse_date(
+                self.sheet.cell(
+                    row=row,
+                    column=self.headers["Sotib olingan sana"],
+                ).value
+            ),
+
+            purchase_price=self.parse_decimal(
+                self.sheet.cell(
+                    row=row,
+                    column=self.headers["Sotib olingan qiymat"],
+                ).value
+            ),
         )
 
         obj.atm = self.turons.get(terminal_id)
@@ -131,7 +145,8 @@ class ATMExcelImporter:
                 old.merchant_id = obj.merchant_id
                 old.account_23510 = obj.account_23510
                 old.account_45265 = obj.account_45265
-
+                old.purchase_date = obj.purchase_date
+                old.purchase_price = obj.purchase_price
                 old.atm = obj.atm
 
                 self.objects_update.append(old)
@@ -164,6 +179,8 @@ class ATMExcelImporter:
                     "merchant_id",
                     "account_23510",
                     "account_45265",
+                    "purchase_date",
+                    "purchase_price",
                 ],
                 batch_size=1000
             )
@@ -172,4 +189,32 @@ class ATMExcelImporter:
             "created": created,
             "updated": updated,
         }
+
+    def parse_date(self, value):
+
+        if not value:
+            return None
+
+        # Excel date object bo'lsa
+        if hasattr(value, "year"):
+            return value
+
+        value = str(value).strip()
+
+        try:
+            return datetime.strptime(
+                value,
+                "%d.%m.%Y",
+            ).date()
+        except ValueError:
+            return None
+
+    def parse_decimal(self, value):
+
+        if value in (None, ""):
+            return None
+
+        value = str(value).replace(" ", "").replace(",", ".")
+
+        return Decimal(value)
 

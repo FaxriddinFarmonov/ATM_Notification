@@ -3,11 +3,11 @@ from apps.Bankomat_hisobot.models import (
     ATMServiceContract,
 )
 
-
 class ContractSaver:
 
     @classmethod
     def save(cls, parsed):
+
         atm = (
             ATMTURON.objects
             .filter(
@@ -17,28 +17,11 @@ class ContractSaver:
         )
 
         if atm is None:
-            print(
-                "TOPILMADI:",
-                parsed.terminal_id,
-            )
-
+            print("TOPILMADI:", parsed.terminal_id)
             return None
-        contract, _ = ATMServiceContract.objects.update_or_create(
 
-            atm=atm,
-
-            defaults={
-
-                "bxm_name": parsed.branch,
-
-                "mfo": parsed.mfo,
-
-                "merchant_id": parsed.merchant_id,
-
-                "card_type": parsed.card_type,
-
-            }
-
+        contract, _ = ATMServiceContract.objects.get_or_create(
+            atm=atm
         )
 
         return contract

@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .views.atm_ai_analysis import ATMAIAnalysisAPIView
 from .views.atm_filter_options import ATMFilterOptionsAPIView
 from .views.maintenance import (
     MaintenanceListAPIView,
@@ -48,5 +49,9 @@ urlpatterns = [
             ATMFilterOptionsAPIView.as_view(),
             name="atm-filter-options",
         ),
+    path(
+        "atms/<int:pk>/ai-analysis/",
+        ATMAIAnalysisAPIView.as_view(),
+    ),
     
     ]

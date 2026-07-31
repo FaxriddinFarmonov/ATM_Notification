@@ -8,7 +8,7 @@ from ..services.excel_exporter import ATMExcelExporter
 from django.urls import reverse
 from django.utils.html import format_html
 from ..services.full_excel_exporter import FullATMExcelExporter
-
+from django.utils import timezone
 from ..models import (
     ATMTURON, ATMYearStatistic,
 )
@@ -203,21 +203,36 @@ class ATMTURONAdmin(admin.ModelAdmin):
         return exporter.build_response()
 
     @admin.display(description="")
-
     def download_full_excel(self, request):
+        """
+        Export Excel using the current Django Admin
+        filters, search and ordering.
+        """
 
-        exporter = FullATMExcelExporter()
+        changelist = self.get_changelist_instance(request)
+
+        queryset = changelist.get_queryset(request)
+
+        exporter = FullATMExcelExporter(
+            queryset=queryset,
+        )
 
         output = exporter.export()
 
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+
         response = HttpResponse(
             output.getvalue(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ),
         )
 
         response[
             "Content-Disposition"
-        ] = 'attachment; filename="All_ATMs_Report.xlsx"'
+        ] = (
+            f'attachment; filename="ATM_Report_{timestamp}.xlsx"'
+        )
 
         return response
     

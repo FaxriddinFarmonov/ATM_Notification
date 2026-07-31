@@ -10,5 +10,3 @@ class ATMDetailSerializer(serializers.Serializer):
         service = ATMBusinessService(instance)
 
         return service.build()
-
-    
