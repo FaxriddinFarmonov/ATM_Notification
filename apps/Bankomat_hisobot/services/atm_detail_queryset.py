@@ -8,13 +8,15 @@ from ..models.ATMMonthlyStatistic import (
 )
 
 
+from django.db.models import Prefetch, Q
+
+
 
 class ATMDetailQuerySet:
 
     @staticmethod
-    def get(pk):
-
-        return (
+    def get(value):
+        queryset = (
             ATMTURON.objects
             .select_related(
                 "technical",
@@ -23,31 +25,21 @@ class ATMDetailQuerySet:
             .prefetch_related(
                 Prefetch(
                     "monthly_statistics",
-                    queryset=(
-                        ATMMonthlyStatistic.objects
-                        .order_by("-year", "-month")
-                    ),
+                    queryset=ATMMonthlyStatistic.objects.order_by("-year", "-month"),
                 ),
                 Prefetch(
                     "year_statistics",
-                    queryset=(
-                        ATMYearStatistic.objects
-                        .order_by("-year")
-                    ),
+                    queryset=ATMYearStatistic.objects.order_by("-year"),
                 ),
-
-                
                 Prefetch(
                     "service_contract__payments",
-                    queryset=(
-                        ATMServicePayment.objects
-                        .order_by(
-                            "-year",
-                            "-month",
-                        )
-                    ),
+                    queryset=ATMServicePayment.objects.order_by("-year", "-month"),
                 ),
                 "technical__maintenance_items",
             )
-            .get(pk=pk)
         )
+
+        if str(value).isdigit():
+            return queryset.get(pk=int(value))
+
+        return queryset.get(terminal_id=value)

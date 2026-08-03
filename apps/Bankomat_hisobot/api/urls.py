@@ -18,7 +18,7 @@ urlpatterns = [
         name="atm-list",
     ),
     path(
-            "atms/<int:pk>/",
+            "atms/<str:pk>/",
             ATMDetailAPIView.as_view(),
             name="atm-detail",
         
@@ -40,7 +40,7 @@ urlpatterns = [
     ),
 
     path(
-        "maintenance/<int:pk>/",
+        "maintenance/<str:pk>/",
         MaintenanceDetailAPIView.as_view(),
         name="maintenance-detail",
     ),
@@ -50,7 +50,7 @@ urlpatterns = [
             name="atm-filter-options",
         ),
     path(
-        "atms/<int:pk>/ai-analysis/",
+        "atms/<str:pk>/ai-analysis/",
         ATMAIAnalysisAPIView.as_view(),
     ),
     
