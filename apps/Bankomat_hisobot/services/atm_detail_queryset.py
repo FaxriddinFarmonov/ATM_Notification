@@ -10,8 +10,6 @@ from ..models.ATMMonthlyStatistic import (
 
 from django.db.models import Prefetch, Q
 
-
-
 class ATMDetailQuerySet:
 
     @staticmethod
@@ -40,6 +38,9 @@ class ATMDetailQuerySet:
         )
 
         if str(value).isdigit():
-            return queryset.get(pk=int(value))
+            try:
+                return queryset.get(pk=int(value))
+            except ATMTURON.DoesNotExist:
+                return queryset.get(terminal_id=str(value))
 
-        return queryset.get(terminal_id=value)
+        return queryset.get(terminal_id=str(value))

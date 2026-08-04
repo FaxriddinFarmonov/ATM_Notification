@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from celery.schedules import crontab
 from decouple import config
-
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,19 +26,25 @@ GROUP_CHAT_ID = -1002229184837
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 ALLOWED_HOSTS = [
-    "atm-info.turonbank.uz",
-    "172.16.100.49",
-    "127.0.0.1",
-    "172.17.104.41",  # backend kompyuter
-    "172.17.104.50",  # boshqa kompyuter
-    "localhost",
-    ".ngrok-free.app",
-    "flashily-coastal-feel.ngrok-free.dev",
+    # "atm-info.turonbank.uz",
+    # "172.16.100.49",
+    # "127.0.0.1",
+    # "172.17.104.41",  # backend kompyuter
+    # "172.17.104.50",  # boshqa kompyuter
+    # "localhost",
+    # ".ngrok-free.app",
+    # "flashily-coastal-feel.ngrok-free.dev",
+    "*"
 ]
 
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "ngrok-skip-browser-warning",
+]
 CSRF_TRUSTED_ORIGINS = [
     "https://atm-info.turonbank.uz",
     "http://atm-info.turonbank.uz",
+    "https://flashily-coastal-feel.ngrok-free.dev",
+    "http://localhost:3000",
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -62,11 +68,13 @@ INSTALLED_APPS = [
     "apps.ai_analytics",
     "django_filters",
     "rest_framework",
-    "drf_spectacular"
+    "drf_spectacular",
+    "corsheaders"
 
 ]
-
+CORS_ALLOW_ALL_ORIGINS = True
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
