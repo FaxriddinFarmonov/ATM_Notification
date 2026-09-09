@@ -1,4 +1,5 @@
 
+from django.http import Http404
 from rest_framework.generics import RetrieveAPIView
 from drf_spectacular.utils import extend_schema
 
@@ -23,7 +24,9 @@ class ATMDetailAPIView(RetrieveAPIView):
     lookup_field = "pk"
 
     def get_object(self):
-
-        return ATMDetailQuerySet.get(
-            self.kwargs["pk"]
-        )
+        try:
+            return ATMDetailQuerySet.get(
+                self.kwargs["pk"]
+            )
+        except Exception:
+            raise Http404("ATM not found")
