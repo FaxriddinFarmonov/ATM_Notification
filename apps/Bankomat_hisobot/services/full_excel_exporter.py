@@ -951,10 +951,6 @@ class FullATMExcelExporter:
         ).count()
         ws = self.summary_sheet
 
-        # ======================================================
-        # TITLE
-        # ======================================================
-
         ws.merge_cells("A1:B1")
         title = ws["A1"]
         ws.row_dimensions[1].height = 30

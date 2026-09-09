@@ -1,5 +1,4 @@
 from django.contrib import admin
-
 from apps.Bankomat_hisobot.models import ATMServicePayment
 from .payment_filters import (
     MonthFilter,

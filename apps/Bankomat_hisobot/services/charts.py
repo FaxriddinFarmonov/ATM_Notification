@@ -3,14 +3,22 @@ from django.db.models.functions import Coalesce
 from apps.maintenance.models import MaintenanceItem
 from apps.Bankomat_hisobot.models.ATMMonthlyStatistic import (
     ATMTURON,
-    ATMMonthlyStatistic
+    ATMMonthlyStatistic,
+    ATMYearStatistic,
+
 )
 from django.db.models.functions import (
     ExtractYear,
     ExtractMonth,
 )
 
+
 class DashboardChartService:
+    MONEY_MULTIPLIER = 1000
+
+    @staticmethod
+    def money(value):
+        return (value or 0) * DashboardChartService.MONEY_MULTIPLIER
 
     @staticmethod
     def status_chart():
@@ -77,12 +85,10 @@ class DashboardChartService:
             {
                 "year": item["year"],
                 "month": item["month"],
-                "income": item["income"] or 0,
-                "expense": item["expense"] or 0,
-                "profit": (
-                    item["income"] or 0
-                ) - (
-                    item["expense"] or 0
+                "income": DashboardChartService.money(item["income"]),
+                "expense": DashboardChartService.money(item["expense"]),
+                "profit": DashboardChartService.money(
+                    (item["income"] or 0) - (item["expense"] or 0)
                 ),
             }
             for item in queryset
@@ -90,35 +96,26 @@ class DashboardChartService:
 
     @staticmethod
     def region_finance():
-
         queryset = (
-            ATMMonthlyStatistic.objects
-            .values(
-                "atm__region",
-            )
+            ATMYearStatistic.objects
+            .values("atm__region")
             .annotate(
                 income=Sum("income"),
                 expense=Sum("expense"),
             )
-            .order_by(
-                "-income",
-            )
+            .order_by("-income")
         )
 
         return [
             {
                 "region": item["atm__region"],
-                "income": item["income"] or 0,
-                "expense": item["expense"] or 0,
-                "profit": (
-                    item["income"] or 0
-                ) - (
-                    item["expense"] or 0
+                "income": DashboardChartService.money(item["income"]),
+                "profit": DashboardChartService.money(
+                    (item["income"] or 0) - (item["expense"] or 0)
                 ),
             }
             for item in queryset
         ]
-
     @staticmethod
     def top_models():
 

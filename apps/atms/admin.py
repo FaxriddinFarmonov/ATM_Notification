@@ -5,10 +5,9 @@ from django.contrib import admin
 from .models import (
     ATM,
     ATMCurrentState,
-    # MonitoringSnapshot,
     ATMEvent,
-
-
+    BTechConfig,
+    BTechATMSnapshot,
 )
 
 # =========================
@@ -176,5 +175,21 @@ class ATMEventAdmin(admin.ModelAdmin):
         "atm__tid",
         "message",
     )
+
+
+@admin.register(BTechConfig)
+class BTechConfigAdmin(admin.ModelAdmin):
+    list_display = ("id", "is_active", "last_synced_at", "last_sync_status")
+    fields = ("bearer_token", "api_url", "is_active", "last_synced_at", "last_sync_status")
+    readonly_fields = ("last_synced_at", "last_sync_status")
+
+
+@admin.register(BTechATMSnapshot)
+class BTechATMSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("serial", "tid", "service_status", "agent_status", "total_cash_uzs", "updated_at")
+    search_fields = ("serial", "tid", "address", "model_name")
+    list_filter = ("service_status", "agent_status", "status")
+    readonly_fields = ("updated_at",)
+
 # =========================
 # 🔥 CARD CASSETTE

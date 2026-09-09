@@ -28,6 +28,14 @@ urlpatterns = [
         include("apps.Bankomat_hisobot.api.urls"),
     ),
     path(
+        "api/v1/",
+        include("apps.users.urls"),
+    ),
+    path(
+        "api/v2/",
+        include("apps.Bankomat_hisobot.urls"),
+    ),
+    path(
         "api/schema/",
         SpectacularAPIView.as_view(),
         name="schema",

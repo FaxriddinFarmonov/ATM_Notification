@@ -3,7 +3,6 @@ from django.db.models import Sum
 from apps.Bankomat_hisobot.models import (
     ATMServiceContract,
 )
-
 from .service_payment import ATMServicePaymentInline
 
 MONTH_NAMES = {

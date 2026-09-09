@@ -12,20 +12,18 @@ from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
 )
+from ..swagger_constants import AVAILABLE_REGIONS, STATUS_CHOICES, CARD_TYPE_CHOICES
+
 @extend_schema(
     tags=["ATM"],
-
     summary="ATM list",
-
     description=(
         "Returns a paginated list of ATMs. "
         "Supports search and filtering by "
         "status, region, card type, model "
         "and active status."
     ),
-
     parameters=[
-
         OpenApiParameter(
             name="search",
             type=OpenApiTypes.STR,
@@ -37,37 +35,30 @@ from drf_spectacular.utils import (
                 "serial number, address or model."
             ),
         ),
-
         OpenApiParameter(
             name="status",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
             required=False,
-            description=(
-                "ATM technical status. "
-                "Available values: SOZ, NOSOZ."
-            ),
+            enum=STATUS_CHOICES,
+            description="Holatni tanlang (SOZ yoki NOSOZ)",
         ),
-
         OpenApiParameter(
             name="region",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
             required=False,
-            description="Filter ATMs by region.",
+            enum=AVAILABLE_REGIONS,
+            description="Viloyatni tanlang",
         ),
-
         OpenApiParameter(
             name="card_type",
             type=OpenApiTypes.STR,
             location=OpenApiParameter.QUERY,
             required=False,
-            description=(
-                "Card type. "
-                "Available values: UZCARD, HUMO."
-            ),
+            enum=CARD_TYPE_CHOICES,
+            description="Karta turini tanlang (UZCARD yoki HUMO)",
         ),
-
         OpenApiParameter(
             name="model",
             type=OpenApiTypes.STR,
@@ -75,18 +66,13 @@ from drf_spectacular.utils import (
             required=False,
             description="Filter ATMs by model.",
         ),
-
         OpenApiParameter(
             name="is_active",
             type=OpenApiTypes.BOOL,
             location=OpenApiParameter.QUERY,
             required=False,
-            description=(
-                "Filter by active status. "
-                "true or false."
-            ),
+            description="Filter by active status (true or false).",
         ),
-
     ],
 )
 class ATMListAPIView(ListAPIView):

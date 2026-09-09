@@ -26,14 +26,14 @@ GROUP_CHAT_ID = -1002229184837
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 ALLOWED_HOSTS = [
-    # "atm-info.turonbank.uz",
-    # "172.16.100.49",
-    # "127.0.0.1",
+    # # "atm-info.turonbank.uz",
+    # # "172.16.100.49",
+    # # "127.0.0.1",
     # "172.17.104.41",  # backend kompyuter
-    # "172.17.104.50",  # boshqa kompyuter
-    # "localhost",
-    # ".ngrok-free.app",
-    # "flashily-coastal-feel.ngrok-free.dev",
+    # # "172.17.104.50",  # boshqa kompyuter
+    # # "localhost",
+    # # ".ngrok-free.app",
+    # # "flashily-coastal-feel.ngrok-free.dev",
     "*"
 ]
 
@@ -112,21 +112,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 REST_FRAMEWORK = {
-
     "DEFAULT_SCHEMA_CLASS": (
         "drf_spectacular.openapi.AutoSchema"
     ),
-
-    "DEFAULT_FILTER_BACKENDS": [
-
-        "django_filters.rest_framework.DjangoFilterBackend",
-
-        "rest_framework.filters.SearchFilter",
-
-        "rest_framework.filters.OrderingFilter",
-
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
     ],
-
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
 }
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -174,6 +171,11 @@ CELERY_BEAT_SCHEDULE = {
 
     # 3. Telegramga yuborish
 
+
+    "sync-btech-hourly": {
+        "task": "apps.atms.tasks.sync_btech_atms_hourly",
+        "schedule": crontab(minute=0), # Every hour at minute 0
+    },
 
     "send-notifications": {
     "task": "apps.notifications.tasks.send_notifications",
@@ -258,7 +260,22 @@ SPECTACULAR_SETTINGS = {
                 "Technical maintenance operations"
             ),
         },
+        {
+            "name": "Analytics",
+            "description": (
+                "Senior-level ATM analytics: top regions, top income ATMs, "
+                "top expense ATMs, loss-making ATMs, KPI overview and AI insights"
+            ),
+        },
+        {
+            "name": "ATM AI",
+            "description": (
+                "Ollama LLM sun'iy intellekti orqali bankomatlar, viloyatlar va boshqaruv hisobotlari tahlili"
+            ),
+        },
 
     ],
 
 }
+
+

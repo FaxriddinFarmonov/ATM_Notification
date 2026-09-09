@@ -14,6 +14,11 @@ from .charts import DashboardChartService
 
 
 class DashboardService:
+    MONEY_MULTIPLIER = 1000
+
+    @staticmethod
+    def money(value):
+        return (value or 0) * DashboardService.MONEY_MULTIPLIER
 
     @staticmethod
     def summary():
@@ -69,13 +74,9 @@ class DashboardService:
         expense = finance["expense"] or 0
 
         return {
-
-            "income": income,
-
-            "expense": expense,
-
-            "profit": income - expense,
-
+            "income": DashboardService.money(income),
+            "expense": DashboardService.money(expense),
+            "profit": DashboardService.money(income - expense),
         }
     @staticmethod
     def maintenance():
@@ -84,26 +85,15 @@ class DashboardService:
 
             repair_count=Count("id"),
 
-            repair_cost=Sum("total_amount"),
+            repair_cost=Sum("total_with_vat"),
 
         )
-
-        @classmethod
-        def dashboard(cls):
-            return {
-                "summary": cls.summary(),
-                "finance": cls.finance(),
-                "maintenance": cls.maintenance(),
-                "top_regions": cls.top_regions(),
-                "status_chart": DashboardChartService.status_chart(),
-                "card_chart": DashboardChartService.card_chart(),
-            }
 
         return {
 
             "repair_count": maintenance["repair_count"] or 0,
 
-            "repair_cost": maintenance["repair_cost"] or 0,
+            "repair_cost": float(maintenance["repair_cost"] or 0),
 
         }
 

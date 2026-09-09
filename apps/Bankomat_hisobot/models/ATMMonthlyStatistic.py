@@ -195,29 +195,4 @@ class ExcelImport(models.Model):
 
     def __str__(self):
         return self.file.name
-
-
-class ExcelImport(models.Model):
-
-    created_at = models.DateTimeField(
-        auto_now_add=True
-    )
-
-    file = models.FileField(
-        upload_to="atm/imports/"
-    )
-
-    imported_rows = models.PositiveIntegerField(
-        default=0
-    )
-
-    success = models.BooleanField(
-        default=True
-    )
-
-    error = models.TextField(
-        blank=True
-    )
-
-    def __str__(self):
-        return self.file.name
+

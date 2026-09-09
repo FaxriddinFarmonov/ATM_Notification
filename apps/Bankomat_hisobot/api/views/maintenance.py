@@ -28,6 +28,24 @@ from ...services.maintenance_filters import (
 )
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
+@extend_schema(
+    tags=["Maintenance"],
+    summary="Ta'mirlash va ehtiyot qismlar ro'yxati",
+    description="Protokollar bo'yicha bankomatlarga o'rnatilgan ehtiyot qismlar, bajarilgan ta'mirlash ishlari va xarajatlar ro'yxati (qidiruv va filtrlar bilan).",
+    parameters=[
+        OpenApiParameter(name="search", type=OpenApiTypes.STR, required=False, description="Ehtiyot qism nomi, seriya raqami yoki filial bo'yicha qidiruv"),
+        OpenApiParameter(name="region", type=OpenApiTypes.STR, required=False, description="Viloyat"),
+        OpenApiParameter(name="terminal_id", type=OpenApiTypes.STR, required=False, description="Terminal ID (TID)"),
+        OpenApiParameter(name="serial_number", type=OpenApiTypes.STR, required=False, description="Seriya raqami"),
+        OpenApiParameter(name="part_name", type=OpenApiTypes.STR, required=False, description="Ehtiyot qism nomi"),
+        OpenApiParameter(name="protocol_number", type=OpenApiTypes.STR, required=False, description="Protokol raqami"),
+        OpenApiParameter(name="date_from", type=OpenApiTypes.DATE, required=False, description="Boshlang'ich sana (YYYY-MM-DD)"),
+        OpenApiParameter(name="date_to", type=OpenApiTypes.DATE, required=False, description="Tugash sanasi (YYYY-MM-DD)"),
+    ],
+    responses={200: MaintenanceListSerializer(many=True)},
+)
 class MaintenanceListAPIView(ListAPIView):
 
     serializer_class = MaintenanceListSerializer
@@ -63,6 +81,13 @@ class MaintenanceListAPIView(ListAPIView):
 
         return queryset
 
+
+@extend_schema(
+    tags=["Maintenance"],
+    summary="Bitta ta'mirlash elementi batafsil ma'lumoti",
+    description="Tanlangan ta'mirlash yozuvining barcha parametrlari (ehtiyot qism narxi, QQS, miqdori va protokol ma'lumotlari).",
+    responses={200: MaintenanceDetailSerializer},
+)
 class MaintenanceDetailAPIView(
     RetrieveAPIView
 ):
@@ -73,4 +98,4 @@ class MaintenanceDetailAPIView(
 
     queryset = (
         MaintenanceItem.objects.all()
-    )
+    )

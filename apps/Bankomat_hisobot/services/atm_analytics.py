@@ -4,6 +4,11 @@ from statistics import mean
 
 
 class ATMAnalyticsService:
+    MONEY_MULTIPLIER = 1000
+
+    @classmethod
+    def money(cls, value):
+        return float(value or 0) * cls.MONEY_MULTIPLIER
 
     def __init__(self, atm):
 
@@ -88,12 +93,12 @@ class ATMAnalyticsService:
             return {}
 
         incomes = [
-            float(i.income)
+            self.money(i.income)
             for i in self.monthly
         ]
 
         expenses = [
-            float(i.expense)
+            self.money(i.expense)
             for i in self.monthly
         ]
 
@@ -170,17 +175,17 @@ class ATMAnalyticsService:
             return {}
 
         total = sum(
-            float(p.amount)
+            self.money(p.amount)
             for p in self.contract.payments.all()
         )
 
         return {
 
-            "btech_monthly_fee": float(
+            "btech_monthly_fee": self.money(
                 self.contract.btech_monthly_fee
             ),
 
-            "glob_monthly_fee": float(
+            "glob_monthly_fee": self.money(
                 self.contract.glob_monthly_fee
             ),
 
@@ -341,7 +346,7 @@ class ATMAnalyticsService:
 
             mean(
 
-                float(i.income)
+                self.money(i.income)
 
                 for i in self.monthly[:3]
 
@@ -355,7 +360,7 @@ class ATMAnalyticsService:
 
             mean(
 
-                float(i.expense)
+                self.money(i.expense)
 
                 for i in self.monthly[:3]
 
@@ -381,12 +386,12 @@ class ATMAnalyticsService:
             return {}
 
         incomes = [
-            float(i.income)
+            self.money(i.income)
             for i in months
         ]
 
         expenses = [
-            float(i.expense)
+            self.money(i.expense)
             for i in months
         ]
 
@@ -441,7 +446,7 @@ class ATMAnalyticsService:
 
                 "month": highest_income.month,
 
-                "amount": float(
+                "amount": self.money(
                     highest_income.income
                 ),
 
@@ -453,7 +458,7 @@ class ATMAnalyticsService:
 
                 "month": lowest_income.month,
 
-                "amount": float(
+                "amount": self.money(
                     lowest_income.income
                 ),
 
@@ -465,7 +470,7 @@ class ATMAnalyticsService:
 
                 "month": highest_expense.month,
 
-                "amount": float(
+                "amount": self.money(
                     highest_expense.expense
                 ),
 
@@ -477,7 +482,7 @@ class ATMAnalyticsService:
 
                 "month": lowest_expense.month,
 
-                "amount": float(
+                "amount": self.money(
                     lowest_expense.expense
                 ),
 

@@ -7,6 +7,11 @@ from django.db.models import Sum
 from apps.maintenance.models import MaintenanceItem
 
 class ATMBusinessService:
+    MONEY_MULTIPLIER = 1000
+
+    @staticmethod
+    def money(value):
+        return (value or 0) * ATMBusinessService.MONEY_MULTIPLIER
 
     def __init__(self, atm):
 
@@ -130,11 +135,9 @@ class ATMBusinessService:
 
                     "month": item.month,
 
-                    "income": item.income,
-
-                    "expense": item.expense,
-
-                    "repair_cost": maintenance["repair_cost"],
+                    "income": self.money(item.income),
+                    "expense": self.money(item.expense),
+                    "repair_cost": float(maintenance["repair_cost"] or 0),
 
                     "quantity": maintenance["quantity"],
 
@@ -234,11 +237,9 @@ class ATMBusinessService:
 
                     "card_type": item.card_type,
 
-                    "income": item.income,
-
-                    "expense": item.expense,
-
-                    "repair_cost": maintenance["repair_cost"],
+                    "income": self.money(item.income),
+                    "expense": self.money(item.expense),
+                    "repair_cost": float(maintenance["repair_cost"] or 0),
 
                     "quantity": maintenance["quantity"],
 
@@ -261,9 +262,8 @@ class ATMBusinessService:
 
         return {
 
-            "btech_monthly_fee": contract.btech_monthly_fee,
-
-            "glob_monthly_fee": contract.glob_monthly_fee,
+            "btech_monthly_fee": self.money(contract.btech_monthly_fee),
+            "glob_monthly_fee": self.money(contract.glob_monthly_fee),
 
             "payments": [
 
@@ -275,8 +275,7 @@ class ATMBusinessService:
 
                     "payment_type": payment.payment_type,
 
-                    "amount": payment.amount,
-
+                    "amount": self.money(payment.amount),
                 }
 
                 for payment in contract.payments.all()

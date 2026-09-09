@@ -13,3 +13,9 @@ def sync_atms():
 
     # yangi snapshot olish
     SyncService().run()
+
+
+@shared_task
+def sync_btech_atms_hourly():
+    from apps.atms.services.btech_sync import BTechSyncService
+    return BTechSyncService.sync_all()

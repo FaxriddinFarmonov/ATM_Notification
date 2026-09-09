@@ -105,9 +105,9 @@ class RentFilter(SimpleListFilter):
 
 class IncassationFilter(SimpleListFilter):
     title = "Inkasatsiya"
-
     parameter_name = "incassation"
 
+ 
     def lookups(self, request, model_admin):
         return (
             ("yes", "Inkasatsiya mavjud"),

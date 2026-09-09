@@ -12,6 +12,31 @@ from ...services.atm_filter_options import (
 )
 
 
+from rest_framework import serializers
+
+class FilterChoiceSerializer(serializers.Serializer):
+    value = serializers.CharField()
+    label = serializers.CharField()
+
+class MonthChoiceSerializer(serializers.Serializer):
+    value = serializers.IntegerField()
+    label = serializers.CharField()
+
+class BooleanChoiceSerializer(serializers.Serializer):
+    value = serializers.BooleanField()
+    label = serializers.CharField()
+
+class ATMFilterOptionsResponseSerializer(serializers.Serializer):
+    status = FilterChoiceSerializer(many=True)
+    card_type = FilterChoiceSerializer(many=True)
+    regions = serializers.ListField(child=serializers.CharField())
+    models = serializers.ListField(child=serializers.CharField())
+    model_names = serializers.ListField(child=serializers.CharField())
+    years = serializers.ListField(child=serializers.IntegerField())
+    months = MonthChoiceSerializer(many=True)
+    is_active = BooleanChoiceSerializer(many=True)
+
+
 @extend_schema(
     tags=["ATM"],
     summary="ATM filter options",
@@ -21,11 +46,10 @@ from ...services.atm_filter_options import (
         "returned values to populate filter dropdowns."
     ),
     responses={
-        200: OpenApiResponse(
-            description="Filter options returned successfully."
-        )
+        200: ATMFilterOptionsResponseSerializer
     },
 )
+
 class ATMFilterOptionsAPIView(APIView):
 
     permission_classes = (AllowAny,)
