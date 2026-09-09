@@ -1,0 +1,2454 @@
+openapi: 3.0.3
+info:
+  title: ATM Monitoring API
+  version: 1.0.0
+  description: ATM monitoring, business analytics, maintenance and dashboard API
+paths:
+  /api/v1/analytics/atms/loss-making/:
+    get:
+      operationId: v1_analytics_atms_loss_making_list
+      description: 'Haqiqiy xarajati daromadidan oshib ketayotgan muammoli bankomatlarni
+        aniqlash. Bazadagi real ma''lumotlarga tayangan holda (Ollama ishlatilmaydi)
+        qat''iy amaliy tavsiyalar: past aylanmali nuqtalarni savdo markazlariga ko''chirish
+        (relokatsiya), yuqori ta''mirlash xarajatlilarni audit qilish, ijara stavkasini
+        pasaytirish yoki inkassatsiya grafigini optimallashtirish.'
+      summary: Zarardagi bankomatlar va Joyini almashtirish (Relokatsiya) tavsiyalari
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: 'Natijalar sonini tanlang (default: 20)'
+      - in: query
+        name: min_loss
+        schema:
+          type: integer
+        description: Minimal zarar miqdori chegarasi (so'mda)
+      - in: query
+        name: month
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 10
+          - 11
+          - 12
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+        description: Oyni tanlang
+      - in: query
+        name: region
+        schema:
+          type: string
+          enum:
+          - Andijon
+          - Булунғур
+          - Булунғур БРМ
+          - Бухоро
+          - Гулистон
+          - Жиззах
+          - Зангиота
+          - М.Улуғбек
+          - МАБ
+          - Мирзо Улуғбек
+          - Миробод
+          - Навоий
+          - Наманган
+          - Нукус
+          - Самарқанд
+          - Термиз
+          - Урганч
+          - Фарғона
+          - Чилонзор
+          - Шаҳрисабз
+          - Юнусобод
+          - Яшнобод
+          - Қарши
+        description: Viloyatni tanlang
+      - in: query
+        name: year
+        schema:
+          type: integer
+          enum:
+          - 2024
+          - 2025
+          - 2026
+        description: Yilni tanlang
+      tags:
+      - Analytics
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LossMakingATM'
+          description: ''
+  /api/v1/analytics/atms/top-expense/:
+    get:
+      operationId: v1_analytics_atms_top_expense_list
+      description: 'Bank uchun eng ko''p rasxod talab qilgan bankomatlar reytingi.
+        Xarajatlar taqsimoti: ehtiyot qismlar va ta''mirlash, ijara to''lovi, elektr
+        energiyasi, inkassatsiya xizmati va shartnoma to''lovlari (BTech, Glob). Shuningdek,
+        bankomat qancha daromad bergani va sof natijasi (foyda/zarar).'
+      summary: Eng ko'p haqiqiy rasxod qilgan bankomatlar (Top Expense ATMs)
+      parameters:
+      - in: query
+        name: expense_type
+        schema:
+          type: string
+          enum:
+          - all
+          - electricity
+          - incassation
+          - maintenance
+          - rent
+        description: Saralash xarajat turi (all, maintenance, rent, electricity, incassation)
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 10
+        description: 'Qaytariladigan bankomatlar soni (default: 10)'
+      - in: query
+        name: month
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 10
+          - 11
+          - 12
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+        description: Oyni tanlang
+      - in: query
+        name: region
+        schema:
+          type: string
+          enum:
+          - Andijon
+          - Булунғур
+          - Булунғур БРМ
+          - Бухоро
+          - Гулистон
+          - Жиззах
+          - Зангиота
+          - М.Улуғбек
+          - МАБ
+          - Мирзо Улуғбек
+          - Миробод
+          - Навоий
+          - Наманган
+          - Нукус
+          - Самарқанд
+          - Термиз
+          - Урганч
+          - Фарғона
+          - Чилонзор
+          - Шаҳрисабз
+          - Юнусобод
+          - Яшнобод
+          - Қарши
+        description: Viloyatni tanlang
+      - in: query
+        name: year
+        schema:
+          type: integer
+          enum:
+          - 2024
+          - 2025
+          - 2026
+        description: Yilni tanlang
+      tags:
+      - Analytics
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopExpenseATM'
+          description: ''
+  /api/v1/analytics/atms/top-income/:
+    get:
+      operationId: v1_analytics_atms_top_income_list
+      description: Bankomatlarning haqiqiy daromadi (income) bo'yicha reytingi. Yechilgan
+        naqd pul aylanmasi (cash_withdrawal), qilingan haqiqiy xarajatlar (zapchast
+        + ijara + tok + inkassatsiya), sof foyda (net_profit) va rentabellik marjasi
+        bilan birga to'liq bankomat pasporti.
+      summary: Eng ko'p daromad keltirgan bankomatlar (Top Revenue ATMs)
+      parameters:
+      - in: query
+        name: card_type
+        schema:
+          type: string
+          enum:
+          - HUMO
+          - UZCARD
+        description: Karta turini tanlang (UZCARD yoki HUMO)
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 10
+        description: 'Qaytariladigan bankomatlar soni (default: 10)'
+      - in: query
+        name: month
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 10
+          - 11
+          - 12
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+        description: Oyni tanlang (1-12)
+      - in: query
+        name: period
+        schema:
+          type: string
+          enum:
+          - all
+          - monthly
+          - yearly
+        description: 'Davr turi (all: umumiy, yearly: yillik, monthly: oylik)'
+      - in: query
+        name: region
+        schema:
+          type: string
+          enum:
+          - Andijon
+          - Булунғур
+          - Булунғур БРМ
+          - Бухоро
+          - Гулистон
+          - Жиззах
+          - Зангиота
+          - М.Улуғбек
+          - МАБ
+          - Мирзо Улуғбек
+          - Миробод
+          - Навоий
+          - Наманган
+          - Нукус
+          - Самарқанд
+          - Термиз
+          - Урганч
+          - Фарғона
+          - Чилонзор
+          - Шаҳрисабз
+          - Юнусобод
+          - Яшнобод
+          - Қарши
+        description: Viloyatni tanlang
+      - in: query
+        name: year
+        schema:
+          type: integer
+          enum:
+          - 2024
+          - 2025
+          - 2026
+        description: Yilni tanlang
+      tags:
+      - Analytics
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopIncomeATM'
+          description: ''
+  /api/v1/analytics/overview/:
+    get:
+      operationId: v1_analytics_overview_retrieve
+      description: 'Front-end boshqaruv paneli va monitoring uchun to''liq moliyaviy
+        KPI xulosa: tarmoqning jami daromadi, yechilgan naqd pul aylanmasi, jami haqiqiy
+        xarajatlar, sof foyda, tarmoq rentabelligi, eng serdaromad bankomat, eng xarajatli
+        bankomat, eng foydali viloyat va zararda ishlayotgan (joyini almashtirish
+        tavsiya etilgan) bankomatlar soni.'
+      summary: Boshqaruv uchun o'tgan oy va davriy tezkor KPI xulosasi (Executive
+        Overview)
+      parameters:
+      - in: query
+        name: month
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 10
+          - 11
+          - 12
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+        description: Oyni tanlang (1-12)
+      - in: query
+        name: year
+        schema:
+          type: integer
+          enum:
+          - 2024
+          - 2025
+          - 2026
+        description: Yilni tanlang (bo'sh qoldirilsa, oxirgi to'liq oy avtomatik hisoblanadi)
+      tags:
+      - Analytics
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagementOverviewResponse'
+          description: ''
+  /api/v1/analytics/regions/:
+    get:
+      operationId: v1_analytics_regions_list
+      description: Viloyatlarning haqiqiy daromadi, bankomatlardan yechilgan naqd
+        pul aylanmasi, haqiqiy xarajatlari (zapchastlar + ijara + tok + inkassatsiya
+        + servis), sof foydasi, rentabellik marjasi, faol/soz/nosoz bankomatlari soni
+        va bitta bankomatga to'g'ri keluvchi o'rtacha ko'rsatkichlar.
+      summary: Viloyatlar kesimida moliyaviy tahlil va reyting (Top Regions)
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: 'Maksimal hududlar soni (default: 20)'
+      - in: query
+        name: month
+        schema:
+          type: integer
+          enum:
+          - 1
+          - 10
+          - 11
+          - 12
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+        description: Oyni tanlang (1-12)
+      - in: query
+        name: sort_by
+        schema:
+          type: string
+          enum:
+          - atms_count
+          - cash_withdrawal
+          - expense
+          - income
+          - profit
+          - profit_margin
+        description: Saralash ustunini tanlang (income, expense, profit, profit_margin,
+          atms_count, cash_withdrawal)
+      - in: query
+        name: year
+        schema:
+          type: integer
+          enum:
+          - 2024
+          - 2025
+          - 2026
+        description: Yilni tanlang (bo'sh qoldirilsa, oxirgi davr olinadi)
+      tags:
+      - Analytics
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegionAnalyticsItem'
+          description: ''
+  /api/v1/atms/:
+    get:
+      operationId: v1_atms_list
+      description: Returns a paginated list of ATMs. Supports search and filtering
+        by status, region, card type, model and active status.
+      summary: ATM list
+      parameters:
+      - in: query
+        name: card_type
+        schema:
+          type: string
+          enum:
+          - HUMO
+          - UZCARD
+        description: Karta turini tanlang (UZCARD yoki HUMO)
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+        description: Filter by active status (true or false).
+      - in: query
+        name: model
+        schema:
+          type: string
+        description: Filter ATMs by model.
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: region
+        schema:
+          type: string
+          enum:
+          - Andijon
+          - Булунғур
+          - Булунғур БРМ
+          - Бухоро
+          - Гулистон
+          - Жиззах
+          - Зангиота
+          - М.Улуғбек
+          - МАБ
+          - Мирзо Улуғбек
+          - Миробод
+          - Навоий
+          - Наманган
+          - Нукус
+          - Самарқанд
+          - Термиз
+          - Урганч
+          - Фарғона
+          - Чилонзор
+          - Шаҳрисабз
+          - Юнусобод
+          - Яшнобод
+          - Қарши
+        description: Viloyatni tanlang
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by ATM name, region, terminal ID, merchant ID, serial
+          number, address or model.
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - NOSOZ
+          - SOZ
+        description: Holatni tanlang (SOZ yoki NOSOZ)
+      tags:
+      - ATM
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedATMListList'
+          description: ''
+  /api/v1/atms/{id}/:
+    get:
+      operationId: v1_atms_retrieve
+      description: Returns complete information about a single ATM including business
+        data, technical data, monthly statistics and maintenance information.
+      summary: ATM detail
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - ATM
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ATMDetail'
+          description: ''
+  /api/v1/atms/{id}/ai-analysis/:
+    post:
+      operationId: v1_atms_ai_analysis_create
+      description: Ko'rsatilgan ID dagi bankomatning statistikasi asosida Ollama sun'iy
+        intellekti orqali tahliliy xulosa va tavsiyalar yaratish.
+      summary: Bitta bankomat bo'yicha Ollama AI tahlili
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - ATM AI
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ATMAIAnalysisResponse'
+          description: ''
+  /api/v1/atms/{id}/export/:
+    get:
+      operationId: v1_atm_single_excel_export
+      description: Ko'rsatilgan ID yoki TID dagi bitta bankomatning barcha moliyaviy
+        va texnik ma'lumotlarini .xlsx Excel fayl ko'rinishida yuklab olish.
+      summary: Bitta bankomatning to'liq Excel hisoboti
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - ATM
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/atms/export/:
+    get:
+      operationId: v1_atms_bulk_excel_export
+      description: 'Barcha yoki filtrlangan bankomatlar ro''yxatini to''liq Excel
+        (.xlsx) fayl qilib yuklab olish. Filtrlar: region, card_type, model, terminal_id,
+        is_active.'
+      summary: Barcha bankomatlarning umumiy Excel hisoboti
+      tags:
+      - ATM
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/atms/filters/:
+    get:
+      operationId: v1_atms_filters_retrieve
+      description: Returns all available filter values for ATM list page. Frontend
+        should call this endpoint once and use the returned values to populate filter
+        dropdowns.
+      summary: ATM filter options
+      tags:
+      - ATM
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ATMFilterOptionsResponse'
+          description: ''
+  /api/v1/dashboard/:
+    get:
+      operationId: v1_dashboard_retrieve
+      description: 'Asosiy boshqaruv paneli uchun barcha ko''rsatkichlar: Umumiy holat
+        (jami/faol/soz/nosoz), Moliya (daromad/xarajat/foyda), Ta''mirlash statistikasi,
+        Top viloyatlar, Status grafigi, Karta turlari grafigi, Oylik moliyaviy dinamika,
+        Modellar bo''yicha taqsimot, Ta''mirlash trendi va oxirgi 10 ta ta''mirlash
+        aktlari.'
+      summary: Dashboard to'liq tahliliy ko'rsatkichlari
+      tags:
+      - Dashboard
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dashboard'
+          description: ''
+  /api/v1/maintenance/:
+    get:
+      operationId: v1_maintenance_list
+      description: Protokollar bo'yicha bankomatlarga o'rnatilgan ehtiyot qismlar,
+        bajarilgan ta'mirlash ishlari va xarajatlar ro'yxati (qidiruv va filtrlar
+        bilan).
+      summary: Ta'mirlash va ehtiyot qismlar ro'yxati
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Boshlang'ich sana (YYYY-MM-DD)
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Tugash sanasi (YYYY-MM-DD)
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: part_name
+        schema:
+          type: string
+        description: Ehtiyot qism nomi
+      - in: query
+        name: protocol_number
+        schema:
+          type: string
+        description: Protokol raqami
+      - in: query
+        name: region
+        schema:
+          type: string
+        description: Viloyat
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Ehtiyot qism nomi, seriya raqami yoki filial bo'yicha qidiruv
+      - in: query
+        name: serial_number
+        schema:
+          type: string
+        description: Seriya raqami
+      - in: query
+        name: terminal_id
+        schema:
+          type: string
+        description: Terminal ID (TID)
+      tags:
+      - Maintenance
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMaintenanceListList'
+          description: ''
+  /api/v1/maintenance/{id}/:
+    get:
+      operationId: v1_maintenance_retrieve
+      description: Tanlangan ta'mirlash yozuvining barcha parametrlari (ehtiyot qism
+        narxi, QQS, miqdori va protokol ma'lumotlari).
+      summary: Bitta ta'mirlash elementi batafsil ma'lumoti
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Maintenance
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaintenanceDetail'
+          description: ''
+  /api/v1/regions/ai-analysis/:
+    post:
+      operationId: v1_regions_ai_analysis_create
+      description: Tanlangan viloyatning oylar va yillar kesimidagi statistikasi asosida
+        Ollama LLM orqali tahlil va tavsiyalar olish.
+      summary: Viloyat bo'yicha Ollama AI tahlili
+      tags:
+      - ATM AI
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegionAIAnalysisRequest'
+            examples:
+              NamunaSo'rov(ViloyatTahlili):
+                value:
+                  region: Самарқанд
+                  start_year: 2025
+                  end_year: 2025
+                  start_month: 1
+                  end_month: 12
+                summary: Namuna so'rov (Viloyat tahlili)
+                description: Samarqand viloyati bo'yicha 2025-yil statistikasi tahlili
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegionAIAnalysisRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegionAIAnalysisRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionAIAnalysisResponse'
+          description: ''
+  /api/v2/regions/ai-analysis/:
+    post:
+      operationId: v2_regions_ai_analysis_create
+      description: Tanlangan viloyatning oylar va yillar kesimidagi statistikasi asosida
+        Ollama LLM orqali tahlil va tavsiyalar olish.
+      summary: Viloyat bo'yicha Ollama AI tahlili
+      tags:
+      - ATM AI
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegionAIAnalysisRequest'
+            examples:
+              NamunaSo'rov(ViloyatTahlili):
+                value:
+                  region: Самарқанд
+                  start_year: 2025
+                  end_year: 2025
+                  start_month: 1
+                  end_month: 12
+                summary: Namuna so'rov (Viloyat tahlili)
+                description: Samarqand viloyati bo'yicha 2025-yil statistikasi tahlili
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegionAIAnalysisRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegionAIAnalysisRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionAIAnalysisResponse'
+          description: ''
+components:
+  schemas:
+    ATMAIAnalysisResponse:
+      type: object
+      properties:
+        analysis:
+          type: string
+          description: Bankomat bo'yicha Ollama LLM xulosasi
+      required:
+      - analysis
+    ATMDetail:
+      type: object
+      properties:
+        general:
+          $ref: '#/components/schemas/ATMGeneralInfo'
+        technical:
+          $ref: '#/components/schemas/ATMTechnicalInfo'
+        service_contract:
+          allOf:
+          - $ref: '#/components/schemas/ATMServiceContractInfo'
+          nullable: true
+        monthly_statistics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ATMMonthlyStatisticItem'
+        yearly_statistics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ATMYearlyStatisticItem'
+      required:
+      - general
+      - monthly_statistics
+      - service_contract
+      - technical
+      - yearly_statistics
+    ATMFilterOptionsResponse:
+      type: object
+      properties:
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterChoice'
+        card_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterChoice'
+        regions:
+          type: array
+          items:
+            type: string
+        models:
+          type: array
+          items:
+            type: string
+        model_names:
+          type: array
+          items:
+            type: string
+        years:
+          type: array
+          items:
+            type: integer
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthChoice'
+        is_active:
+          type: array
+          items:
+            $ref: '#/components/schemas/BooleanChoice'
+      required:
+      - card_type
+      - is_active
+      - model_names
+      - models
+      - months
+      - regions
+      - status
+      - years
+    ATMGeneralInfo:
+      type: object
+      properties:
+        region:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        card_type:
+          type: string
+        model:
+          type: string
+      required:
+      - address
+      - card_type
+      - model
+      - name
+      - region
+    ATMList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: ATM nomi
+          maxLength: 255
+        region:
+          type: string
+          title: Viloyat
+          maxLength: 100
+        terminal_id:
+          type: string
+          readOnly: true
+        merchant_id:
+          type: string
+          readOnly: true
+        serial_number:
+          type: string
+          readOnly: true
+        status:
+          type: string
+          readOnly: true
+        card_type:
+          type: string
+          readOnly: true
+        model:
+          type: string
+          readOnly: true
+        address:
+          type: string
+          readOnly: true
+      required:
+      - address
+      - card_type
+      - id
+      - merchant_id
+      - model
+      - name
+      - region
+      - serial_number
+      - status
+      - terminal_id
+    ATMMonthlyStatisticItem:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        income:
+          type: number
+          format: double
+        expense:
+          type: number
+          format: double
+        repair_cost:
+          type: number
+          format: double
+        quantity:
+          type: number
+          format: double
+      required:
+      - expense
+      - income
+      - month
+      - quantity
+      - repair_cost
+      - year
+    ATMServiceContractInfo:
+      type: object
+      properties:
+        btech_monthly_fee:
+          type: number
+          format: double
+        glob_monthly_fee:
+          type: number
+          format: double
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ATMServicePaymentItem'
+      required:
+      - btech_monthly_fee
+      - glob_monthly_fee
+      - payments
+    ATMServicePaymentItem:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        payment_type:
+          type: string
+        amount:
+          type: number
+          format: double
+      required:
+      - amount
+      - month
+      - payment_type
+      - year
+    ATMTechnicalInfo:
+      type: object
+      properties:
+        merchant_id:
+          type: string
+        terminal_id:
+          type: string
+        status:
+          type: string
+        serial_number:
+          type: string
+        inventory_number:
+          type: string
+        account_23510:
+          type: string
+        account_45265:
+          type: string
+      required:
+      - account_23510
+      - account_45265
+      - inventory_number
+      - merchant_id
+      - serial_number
+      - status
+      - terminal_id
+    ATMYearlyStatisticItem:
+      type: object
+      properties:
+        year:
+          type: integer
+        card_type:
+          type: string
+        income:
+          type: number
+          format: double
+        expense:
+          type: number
+          format: double
+        repair_cost:
+          type: number
+          format: double
+        quantity:
+          type: number
+          format: double
+      required:
+      - card_type
+      - expense
+      - income
+      - quantity
+      - repair_cost
+      - year
+    BooleanChoice:
+      type: object
+      properties:
+        value:
+          type: boolean
+        label:
+          type: string
+      required:
+      - label
+      - value
+    ChartNameValue:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nomi / kategoriyasi
+        value:
+          type: integer
+          description: Miqdori
+      required:
+      - name
+      - value
+    Dashboard:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/DashboardSummary'
+        finance:
+          $ref: '#/components/schemas/DashboardFinance'
+        maintenance:
+          $ref: '#/components/schemas/DashboardMaintenance'
+        top_regions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardTopRegionItem'
+        status_chart:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartNameValue'
+        card_chart:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChartNameValue'
+        monthly_chart:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyChartItem'
+        region_finance:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegionFinanceItem'
+        top_models:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopModelItem'
+        repair_trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/RepairTrendItem'
+        recent_maintenance:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentMaintenanceItem'
+      required:
+      - card_chart
+      - finance
+      - maintenance
+      - monthly_chart
+      - recent_maintenance
+      - region_finance
+      - repair_trend
+      - status_chart
+      - summary
+      - top_models
+      - top_regions
+    DashboardFinance:
+      type: object
+      properties:
+        income:
+          type: number
+          format: double
+          description: Jami daromad (so'mda)
+        expense:
+          type: number
+          format: double
+          description: Jami xarajat (so'mda)
+        profit:
+          type: number
+          format: double
+          description: Sof foyda (so'mda)
+      required:
+      - expense
+      - income
+      - profit
+    DashboardMaintenance:
+      type: object
+      properties:
+        repair_count:
+          type: integer
+          description: Ta'mirlashlar soni
+        repair_cost:
+          type: number
+          format: double
+          description: Ta'mirlash xarajatlari (so'mda)
+      required:
+      - repair_cost
+      - repair_count
+    DashboardSummary:
+      type: object
+      properties:
+        total_atms:
+          type: integer
+          description: Jami bankomatlar soni
+        active:
+          type: integer
+          description: Faol bankomatlar soni
+        inactive:
+          type: integer
+          description: Nofaol bankomatlar soni
+        soz:
+          type: integer
+          description: Soz bankomatlar soni
+        nosoz:
+          type: integer
+          description: Nosoz bankomatlar soni
+        uzcard:
+          type: integer
+          description: UZCARD bankomatlar soni
+        humo:
+          type: integer
+          description: HUMO bankomatlar soni
+      required:
+      - active
+      - humo
+      - inactive
+      - nosoz
+      - soz
+      - total_atms
+      - uzcard
+    DashboardTopRegionItem:
+      type: object
+      properties:
+        region:
+          type: string
+          description: Viloyat nomi
+        total:
+          type: integer
+          description: Jami bankomatlar
+        active:
+          type: integer
+          description: Faol bankomatlar
+        inactive:
+          type: integer
+          description: Nofaol bankomatlar
+        soz:
+          type: integer
+          description: Soz bankomatlar
+        nosoz:
+          type: integer
+          description: Nosoz bankomatlar
+        uzcard:
+          type: integer
+          description: UZCARD soni
+        humo:
+          type: integer
+          description: HUMO soni
+      required:
+      - active
+      - humo
+      - inactive
+      - nosoz
+      - region
+      - soz
+      - total
+      - uzcard
+    EndMonthEnum:
+      enum:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+      - 10
+      - 11
+      - 12
+      type: integer
+      description: |-
+        * `1` - 1
+        * `2` - 2
+        * `3` - 3
+        * `4` - 4
+        * `5` - 5
+        * `6` - 6
+        * `7` - 7
+        * `8` - 8
+        * `9` - 9
+        * `10` - 10
+        * `11` - 11
+        * `12` - 12
+    EndYearEnum:
+      enum:
+      - 2026
+      - 2025
+      - 2024
+      type: integer
+      description: |-
+        * `2026` - 2026
+        * `2025` - 2025
+        * `2024` - 2024
+    FilterChoice:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
+    LossMakingATM:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: Reytingdagi o'rni
+        atm_id:
+          type: integer
+          description: ATM bazaviy ID raqami
+        terminal_id:
+          type: string
+          description: Terminal ID (TID)
+        serial_number:
+          type: string
+          description: Bankomat seriya raqami
+        name:
+          type: string
+          description: Bankomat nomi (BXO / BXM)
+        filial_name:
+          type: string
+          description: Filial nomi
+        region:
+          type: string
+          description: Viloyat
+        address:
+          type: string
+          description: Yuridik manzil
+        model:
+          type: string
+          description: Bankomat modeli
+        card_type:
+          type: string
+          description: Karta turi
+        status:
+          type: string
+          description: Holati (SOZ/NOSOZ)
+        income:
+          type: number
+          format: double
+          description: Keltirgan daromadi (so'mda)
+        cash_withdrawal:
+          type: number
+          format: double
+          description: Yechilgan naqd pul aylanmasi (so'mda)
+        total_real_expense:
+          type: number
+          format: double
+          description: Jami haqiqiy xarajat (so'mda)
+        loss_amount:
+          type: number
+          format: double
+          description: Ko'rilayotgan zarar miqdori (so'mda)
+        maintenance_cost:
+          type: number
+          format: double
+          description: Ta'mirlash va zapchast xarajati (so'mda)
+        rent_cost:
+          type: number
+          format: double
+          description: Ijara to'lovi (so'mda)
+        operational_cost:
+          type: number
+          format: double
+          description: Tok, inkassatsiya va servis xarajatlari (so'mda)
+        primary_cause:
+          type: string
+          description: Zararning asosiy sababi kodi
+        action_required:
+          type: string
+          description: 'Talab etiladigan amaliy harakat: JOYINI_ALMASHTIRISH, TEXNIK_AUDIT_YOKI_YANGILASH,
+            IJARA_MUZOKARASI_YOKI_KOCHIRISH'
+        urgency_level:
+          type: string
+          description: 'Shoshilinchlik darajasi: YUQORI, O''RTA, PAST'
+        recommendation:
+          type: string
+          description: Bazadagi real raqamlarga asoslangan aqlli amaliy tavsiya matni
+      required:
+      - action_required
+      - address
+      - atm_id
+      - card_type
+      - cash_withdrawal
+      - filial_name
+      - income
+      - loss_amount
+      - maintenance_cost
+      - model
+      - name
+      - operational_cost
+      - primary_cause
+      - rank
+      - recommendation
+      - region
+      - rent_cost
+      - serial_number
+      - status
+      - terminal_id
+      - total_real_expense
+      - urgency_level
+    MaintenanceDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        row_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: №
+        protocol_date:
+          type: string
+          format: date
+          nullable: true
+          title: Hujjat sanasi
+        equipment_module:
+          type: string
+          title: Модуль оборудования
+          maxLength: 100
+        serial_number:
+          type: string
+          title: Серийный номер
+          maxLength: 100
+        filial_name:
+          type: string
+          title: Наименование филиала
+          maxLength: 255
+        mfo_bank:
+          type: string
+          title: МФО банка
+          maxLength: 20
+        part_name:
+          type: string
+          title: Наименование запчастей
+        measurement_unit:
+          type: string
+          title: O'lchov birligi
+          maxLength: 50
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,4})?$
+          title: Кол-во
+        price_per_unit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Цена (СУМ)
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Сумма (СУМ)
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          title: QQS (%)
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Сумма НДС
+        total_with_vat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Стоимость с учетом НДС
+        document:
+          type: integer
+          nullable: true
+          title: Hujjat
+        protocol:
+          type: integer
+          nullable: true
+          title: Protokol
+        technical:
+          type: integer
+          nullable: true
+      required:
+      - id
+      - part_name
+      - price_per_unit
+      - quantity
+      - row_number
+      - total_amount
+      - total_with_vat
+      - vat_amount
+    MaintenanceList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        row_number:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: №
+        protocol_number:
+          type: string
+          readOnly: true
+          nullable: true
+        protocol_date:
+          type: string
+          format: date
+          nullable: true
+          title: Hujjat sanasi
+        atm_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        terminal_id:
+          type: string
+          readOnly: true
+          nullable: true
+        atm_name:
+          type: string
+          readOnly: true
+          nullable: true
+        region:
+          type: string
+          readOnly: true
+          nullable: true
+        model:
+          type: string
+          readOnly: true
+          nullable: true
+        card_type:
+          type: string
+          readOnly: true
+          nullable: true
+        status:
+          type: string
+          readOnly: true
+          nullable: true
+        equipment_module:
+          type: string
+          title: Модуль оборудования
+          maxLength: 100
+        serial_number:
+          type: string
+          title: Серийный номер
+          maxLength: 100
+        filial_name:
+          type: string
+          title: Наименование филиала
+          maxLength: 255
+        mfo_bank:
+          type: string
+          title: МФО банка
+          maxLength: 20
+        part_name:
+          type: string
+          title: Наименование запчастей
+        measurement_unit:
+          type: string
+          title: O'lchov birligi
+          maxLength: 50
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,4})?$
+          title: Кол-во
+        price_per_unit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Цена (СУМ)
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Сумма (СУМ)
+        vat_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          title: QQS (%)
+        vat_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Сумма НДС
+        total_with_vat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,16}(?:\.\d{0,2})?$
+          title: Стоимость с учетом НДС
+      required:
+      - atm_id
+      - atm_name
+      - card_type
+      - id
+      - model
+      - part_name
+      - price_per_unit
+      - protocol_number
+      - quantity
+      - region
+      - row_number
+      - status
+      - terminal_id
+      - total_amount
+      - total_with_vat
+      - vat_amount
+    ManagementOverviewResponse:
+      type: object
+      properties:
+        period_label:
+          type: string
+          description: 'Tahlil davri (masalan: 2026-yil Iyun (O''tgan oy))'
+        year:
+          type: integer
+          nullable: true
+        month:
+          type: integer
+          nullable: true
+        kpi_overview:
+          $ref: '#/components/schemas/OverviewKPIItem'
+        top_revenue_atm:
+          allOf:
+          - $ref: '#/components/schemas/OverviewLeaderATM'
+          nullable: true
+        top_expense_atm:
+          allOf:
+          - $ref: '#/components/schemas/OverviewLeaderATM'
+          nullable: true
+        top_profit_region:
+          allOf:
+          - $ref: '#/components/schemas/OverviewLeaderRegion'
+          nullable: true
+        most_problematic_region:
+          allOf:
+          - $ref: '#/components/schemas/OverviewLeaderRegion'
+          nullable: true
+      required:
+      - kpi_overview
+      - month
+      - most_problematic_region
+      - period_label
+      - top_expense_atm
+      - top_profit_region
+      - top_revenue_atm
+      - year
+    MonthChoice:
+      type: object
+      properties:
+        value:
+          type: integer
+        label:
+          type: string
+      required:
+      - label
+      - value
+    MonthlyChartItem:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        income:
+          type: number
+          format: double
+        expense:
+          type: number
+          format: double
+        profit:
+          type: number
+          format: double
+      required:
+      - expense
+      - income
+      - month
+      - profit
+      - year
+    NullEnum:
+      enum:
+      - null
+    OverviewKPIItem:
+      type: object
+      properties:
+        total_income:
+          type: number
+          format: double
+          description: Tarmoqning jami daromadi (so'mda)
+        total_cash_withdrawal:
+          type: number
+          format: double
+          description: Bankomatlardan yechilgan jami naqd pul aylanmasi (so'mda)
+        total_real_expense:
+          type: number
+          format: double
+          description: Tarmoqning jami haqiqiy xarajati (so'mda)
+        total_maintenance_cost:
+          type: number
+          format: double
+          description: Jami ehtiyot qismlar va ta'mirlash xarajati (so'mda)
+        total_rent_cost:
+          type: number
+          format: double
+          description: Jami ijara (arenda) xarajati (so'mda)
+        total_operational_cost:
+          type: number
+          format: double
+          description: Jami tok, inkassatsiya va servis to'lovlari (so'mda)
+        total_net_profit:
+          type: number
+          format: double
+          description: Tarmoqning jami sof foydasi (so'mda)
+        overall_profit_margin:
+          type: number
+          format: double
+          description: Tarmoq rentabellik marjasi (%)
+        total_atms:
+          type: integer
+          description: Jami bankomatlar soni
+        active_atms:
+          type: integer
+          description: Faol bankomatlar soni
+        loss_making_atms_count:
+          type: integer
+          description: Zararda ishlayotgan bankomatlar soni
+        relocation_recommended_count:
+          type: integer
+          description: Joyini almashtirish (relokatsiya) tavsiya etilgan bankomatlar
+            soni
+      required:
+      - active_atms
+      - loss_making_atms_count
+      - overall_profit_margin
+      - relocation_recommended_count
+      - total_atms
+      - total_cash_withdrawal
+      - total_income
+      - total_maintenance_cost
+      - total_net_profit
+      - total_operational_cost
+      - total_real_expense
+      - total_rent_cost
+    OverviewLeaderATM:
+      type: object
+      properties:
+        terminal_id:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        income:
+          type: number
+          format: double
+        cash_withdrawal:
+          type: number
+          format: double
+        total_real_expense:
+          type: number
+          format: double
+        maintenance_cost:
+          type: number
+          format: double
+        net_profit:
+          type: number
+          format: double
+      required:
+      - name
+      - region
+      - terminal_id
+    OverviewLeaderRegion:
+      type: object
+      properties:
+        region:
+          type: string
+          nullable: true
+        total_income:
+          type: number
+          format: double
+        total_real_expense:
+          type: number
+          format: double
+        net_profit:
+          type: number
+          format: double
+        total_atms:
+          type: integer
+      required:
+      - net_profit
+      - region
+      - total_atms
+    PaginatedATMListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ATMList'
+    PaginatedMaintenanceListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaintenanceList'
+    RecentMaintenanceATM:
+      type: object
+      properties:
+        terminal_id:
+          type: string
+          nullable: true
+        serial_number:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+      required:
+      - region
+      - serial_number
+      - terminal_id
+    RecentMaintenanceItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        protocol_number:
+          type: string
+          nullable: true
+        protocol_date:
+          type: string
+          format: date
+          nullable: true
+        part_name:
+          type: string
+        quantity:
+          type: number
+          format: double
+        total_amount:
+          type: number
+          format: double
+        atm:
+          $ref: '#/components/schemas/RecentMaintenanceATM'
+      required:
+      - atm
+      - id
+      - part_name
+      - protocol_date
+      - protocol_number
+      - quantity
+      - total_amount
+    RegionAIAnalysisRequest:
+      type: object
+      properties:
+        region:
+          allOf:
+          - $ref: '#/components/schemas/RegionEnum'
+          description: |-
+            Tahlil qilinadigan viloyatni tanlang
+
+            * `Andijon` - Andijon
+            * `Булунғур` - Булунғур
+            * `Булунғур БРМ` - Булунғур БРМ
+            * `Бухоро` - Бухоро
+            * `Гулистон` - Гулистон
+            * `Жиззах` - Жиззах
+            * `Зангиота` - Зангиота
+            * `М.Улуғбек` - М.Улуғбек
+            * `МАБ` - МАБ
+            * `Мирзо Улуғбек` - Мирзо Улуғбек
+            * `Миробод` - Миробод
+            * `Навоий` - Навоий
+            * `Наманган` - Наманган
+            * `Нукус` - Нукус
+            * `Самарқанд` - Самарқанд
+            * `Термиз` - Термиз
+            * `Урганч` - Урганч
+            * `Фарғона` - Фарғона
+            * `Чилонзор` - Чилонзор
+            * `Шаҳрисабз` - Шаҳрисабз
+            * `Юнусобод` - Юнусобод
+            * `Яшнобод` - Яшнобод
+            * `Қарши` - Қарши
+        start_year:
+          nullable: true
+          description: |-
+            Boshlang'ich yilni tanlang
+
+            * `2026` - 2026
+            * `2025` - 2025
+            * `2024` - 2024
+          oneOf:
+          - $ref: '#/components/schemas/StartYearEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        end_year:
+          nullable: true
+          description: |-
+            Tugash yilini tanlang
+
+            * `2026` - 2026
+            * `2025` - 2025
+            * `2024` - 2024
+          oneOf:
+          - $ref: '#/components/schemas/EndYearEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        start_month:
+          nullable: true
+          description: |-
+            Boshlang'ich oyni tanlang (1-12)
+
+            * `1` - 1
+            * `2` - 2
+            * `3` - 3
+            * `4` - 4
+            * `5` - 5
+            * `6` - 6
+            * `7` - 7
+            * `8` - 8
+            * `9` - 9
+            * `10` - 10
+            * `11` - 11
+            * `12` - 12
+          oneOf:
+          - $ref: '#/components/schemas/StartMonthEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        end_month:
+          nullable: true
+          description: |-
+            Tugash oyini tanlang (1-12)
+
+            * `1` - 1
+            * `2` - 2
+            * `3` - 3
+            * `4` - 4
+            * `5` - 5
+            * `6` - 6
+            * `7` - 7
+            * `8` - 8
+            * `9` - 9
+            * `10` - 10
+            * `11` - 11
+            * `12` - 12
+          oneOf:
+          - $ref: '#/components/schemas/EndMonthEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - region
+    RegionAIAnalysisResponse:
+      type: object
+      properties:
+        region:
+          type: string
+        start_year:
+          type: integer
+          nullable: true
+        end_year:
+          type: integer
+          nullable: true
+        start_month:
+          type: integer
+          nullable: true
+        end_month:
+          type: integer
+          nullable: true
+        analytics:
+          type: object
+          additionalProperties: {}
+          description: Viloyatning hisoblangan statistikasi
+        analysis:
+          type: string
+          description: Ollama AI matnli tahliliy xulosasi
+      required:
+      - analysis
+      - analytics
+      - end_month
+      - end_year
+      - region
+      - start_month
+      - start_year
+    RegionAnalyticsItem:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: Reytingdagi o'rni (1, 2, ...)
+        region:
+          type: string
+          description: Viloyat / hudud nomi
+        total_atms:
+          type: integer
+          description: Jami bankomatlar soni
+        active_atms:
+          type: integer
+          description: Faol bankomatlar soni
+        inactive_atms:
+          type: integer
+          description: Nofaol bankomatlar soni
+        soz_atms:
+          type: integer
+          description: Texnik holati SOZ bankomatlar
+        nosoz_atms:
+          type: integer
+          description: Texnik holati NOSOZ bankomatlar
+        uzcard_atms:
+          type: integer
+          description: UZCARD bankomatlar soni
+        humo_atms:
+          type: integer
+          description: HUMO bankomatlar soni
+        total_income:
+          type: number
+          format: double
+          description: Jami daromad (Gross income, so'mda)
+        total_cash_withdrawal:
+          type: number
+          format: double
+          description: Bankomatlardan yechilgan naqd pul aylanmasi (so'mda)
+        total_real_expense:
+          type: number
+          format: double
+          description: 'Jami haqiqiy xarajat: zapchast + ijara + tok + inkassatsiya
+            + servis (so''mda)'
+        maintenance_cost:
+          type: number
+          format: double
+          description: Ehtiyot qismlar va ta'mirlash xarajati (so'mda)
+        operational_cost:
+          type: number
+          format: double
+          description: 'Operatsion xarajatlar: ijara, tok, inkassatsiya va servis
+            to''lovlari (so''mda)'
+        net_profit:
+          type: number
+          format: double
+          description: Viloyatning sof foydasi (so'mda)
+        profit_margin:
+          type: number
+          format: double
+          description: Rentabellik marjasi (%)
+        avg_income_per_atm:
+          type: number
+          format: double
+          description: Bitta bankomatga to'g'ri keluvchi o'rtacha daromad (so'mda)
+        avg_expense_per_atm:
+          type: number
+          format: double
+          description: Bitta bankomatga to'g'ri keluvchi o'rtacha xarajat (so'mda)
+        top_atm:
+          allOf:
+          - $ref: '#/components/schemas/RegionTopATM'
+          description: Ushbu viloyatdagi eng serdaromad bankomat
+      required:
+      - active_atms
+      - avg_expense_per_atm
+      - avg_income_per_atm
+      - humo_atms
+      - inactive_atms
+      - maintenance_cost
+      - net_profit
+      - nosoz_atms
+      - operational_cost
+      - profit_margin
+      - rank
+      - region
+      - soz_atms
+      - top_atm
+      - total_atms
+      - total_cash_withdrawal
+      - total_income
+      - total_real_expense
+      - uzcard_atms
+    RegionEnum:
+      enum:
+      - Andijon
+      - Булунғур
+      - Булунғур БРМ
+      - Бухоро
+      - Гулистон
+      - Жиззах
+      - Зангиота
+      - М.Улуғбек
+      - МАБ
+      - Мирзо Улуғбек
+      - Миробод
+      - Навоий
+      - Наманган
+      - Нукус
+      - Самарқанд
+      - Термиз
+      - Урганч
+      - Фарғона
+      - Чилонзор
+      - Шаҳрисабз
+      - Юнусобод
+      - Яшнобод
+      - Қарши
+      type: string
+      description: |-
+        * `Andijon` - Andijon
+        * `Булунғур` - Булунғур
+        * `Булунғур БРМ` - Булунғур БРМ
+        * `Бухоро` - Бухоро
+        * `Гулистон` - Гулистон
+        * `Жиззах` - Жиззах
+        * `Зангиота` - Зангиота
+        * `М.Улуғбек` - М.Улуғбек
+        * `МАБ` - МАБ
+        * `Мирзо Улуғбек` - Мирзо Улуғбек
+        * `Миробод` - Миробод
+        * `Навоий` - Навоий
+        * `Наманган` - Наманган
+        * `Нукус` - Нукус
+        * `Самарқанд` - Самарқанд
+        * `Термиз` - Термиз
+        * `Урганч` - Урганч
+        * `Фарғона` - Фарғона
+        * `Чилонзор` - Чилонзор
+        * `Шаҳрисабз` - Шаҳрисабз
+        * `Юнусобод` - Юнусобод
+        * `Яшнобод` - Яшнобод
+        * `Қарши` - Қарши
+    RegionFinanceItem:
+      type: object
+      properties:
+        region:
+          type: string
+        income:
+          type: number
+          format: double
+        profit:
+          type: number
+          format: double
+      required:
+      - income
+      - profit
+      - region
+    RegionTopATM:
+      type: object
+      properties:
+        terminal_id:
+          type: string
+          description: Terminal ID (TID)
+        name:
+          type: string
+          description: Bankomat nomi
+        income:
+          type: number
+          format: double
+          description: Keltirgan daromadi (so'mda)
+      required:
+      - income
+      - name
+      - terminal_id
+    RepairTrendItem:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        repair_count:
+          type: integer
+        repair_cost:
+          type: number
+          format: double
+      required:
+      - month
+      - repair_cost
+      - repair_count
+      - year
+    StartMonthEnum:
+      enum:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+      - 10
+      - 11
+      - 12
+      type: integer
+      description: |-
+        * `1` - 1
+        * `2` - 2
+        * `3` - 3
+        * `4` - 4
+        * `5` - 5
+        * `6` - 6
+        * `7` - 7
+        * `8` - 8
+        * `9` - 9
+        * `10` - 10
+        * `11` - 11
+        * `12` - 12
+    StartYearEnum:
+      enum:
+      - 2026
+      - 2025
+      - 2024
+      type: integer
+      description: |-
+        * `2026` - 2026
+        * `2025` - 2025
+        * `2024` - 2024
+    TopExpenseATM:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: Reytingdagi o'rni
+        atm_id:
+          type: integer
+          description: ATM bazaviy ID raqami
+        terminal_id:
+          type: string
+          description: Terminal ID (TID)
+        serial_number:
+          type: string
+          description: Bankomat seriya raqami
+        name:
+          type: string
+          description: Bankomat nomi (BXO / BXM)
+        filial_name:
+          type: string
+          description: Filial nomi
+        region:
+          type: string
+          description: Viloyat
+        address:
+          type: string
+          description: Yuridik manzil
+        model:
+          type: string
+          description: Bankomat modeli
+        card_type:
+          type: string
+          description: Karta turi
+        status:
+          type: string
+          description: Holati (SOZ/NOSOZ)
+        income:
+          type: number
+          format: double
+          description: Keltirgan daromadi (so'mda)
+        cash_withdrawal:
+          type: number
+          format: double
+          description: Yechilgan naqd pul aylanmasi (so'mda)
+        maintenance_cost:
+          type: number
+          format: double
+          description: Zapchast va ta'mirlash xarajati (so'mda)
+        rent_cost:
+          type: number
+          format: double
+          description: Ijara (arenda) xarajati (so'mda)
+        electricity_cost:
+          type: number
+          format: double
+          description: Elektr (tok) xarajati (so'mda)
+        incassation_cost:
+          type: number
+          format: double
+          description: Inkassatsiya xarajati (so'mda)
+        service_fees:
+          type: number
+          format: double
+          description: BTech va Glob shartnoma to'lovlari (so'mda)
+        total_real_expense:
+          type: number
+          format: double
+          description: Jami haqiqiy xarajat (so'mda)
+        net_profit:
+          type: number
+          format: double
+          description: Sof natija (Daromad - Xarajat, so'mda)
+        expense_to_income_ratio:
+          type: number
+          format: double
+          description: Xarajatning daromadga nisbati (%)
+        repairs_count:
+          type: integer
+          description: O'tkazilgan ta'mirlashlar soni
+      required:
+      - address
+      - atm_id
+      - card_type
+      - cash_withdrawal
+      - electricity_cost
+      - expense_to_income_ratio
+      - filial_name
+      - incassation_cost
+      - income
+      - maintenance_cost
+      - model
+      - name
+      - net_profit
+      - rank
+      - region
+      - rent_cost
+      - repairs_count
+      - serial_number
+      - service_fees
+      - status
+      - terminal_id
+      - total_real_expense
+    TopIncomeATM:
+      type: object
+      properties:
+        rank:
+          type: integer
+          description: Reytingdagi o'rni
+        atm_id:
+          type: integer
+          description: ATM bazaviy ID raqami
+        terminal_id:
+          type: string
+          description: Terminal ID (TID)
+        serial_number:
+          type: string
+          description: Bankomat seriya raqami
+        name:
+          type: string
+          description: Bankomat nomi (BXO / BXM nomi)
+        filial_name:
+          type: string
+          description: Filial nomi
+        region:
+          type: string
+          description: Viloyat
+        address:
+          type: string
+          description: Yuridik manzil
+        model:
+          type: string
+          description: Bankomat modeli
+        card_type:
+          type: string
+          description: Karta turi (UZCARD/HUMO)
+        status:
+          type: string
+          description: Holati (SOZ/NOSOZ)
+        is_active:
+          type: boolean
+          description: Faolligi
+        income:
+          type: number
+          format: double
+          description: Haqiqiy daromad (Gross revenue, so'mda)
+        cash_withdrawal:
+          type: number
+          format: double
+          description: Bankomatdan yechilgan naqd pul aylanmasi (so'mda)
+        maintenance_cost:
+          type: number
+          format: double
+          description: Zapchastlar va ta'mirlash xarajati (so'mda)
+        service_cost:
+          type: number
+          format: double
+          description: Ijara, elektr, inkassatsiya va servis xarajatlari (so'mda)
+        total_real_expense:
+          type: number
+          format: double
+          description: Jami haqiqiy xarajat (so'mda)
+        net_profit:
+          type: number
+          format: double
+          description: Sof foyda (Daromad - Jami haqiqiy xarajat, so'mda)
+        profit_margin:
+          type: number
+          format: double
+          description: Rentabellik marjasi (%)
+      required:
+      - address
+      - atm_id
+      - card_type
+      - cash_withdrawal
+      - filial_name
+      - income
+      - is_active
+      - maintenance_cost
+      - model
+      - name
+      - net_profit
+      - profit_margin
+      - rank
+      - region
+      - serial_number
+      - service_cost
+      - status
+      - terminal_id
+      - total_real_expense
+    TopModelItem:
+      type: object
+      properties:
+        model:
+          type: string
+        total:
+          type: integer
+        soz:
+          type: integer
+        nosoz:
+          type: integer
+      required:
+      - model
+      - nosoz
+      - soz
+      - total
+tags:
+- name: ATM
+  description: ATM list, search, filters and detail endpoints
+- name: Dashboard
+  description: ATM analytics and business dashboard
+- name: Maintenance
+  description: Technical maintenance operations
+- name: Analytics
+  description: 'Senior-level ATM analytics: top regions, top income ATMs, top expense
+    ATMs, loss-making ATMs, KPI overview and AI insights'
+- name: ATM AI
+  description: Ollama LLM sun'iy intellekti orqali bankomatlar, viloyatlar va boshqaruv
+    hisobotlari tahlili
